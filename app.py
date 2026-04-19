@@ -1,68 +1,73 @@
 import streamlit as st
 
-# App Config
-st.set_page_config(page_title="BlackArrowFX Confluence Pro", page_icon="🏹")
+# Setup & BlackArrow Branding
+st.set_page_config(page_title="BlackArrowFX Multi-Engine", layout="wide")
 
-st.title("🏹 BlackArrowFX Confluence Pro")
+st.title("🏹 BlackArrowFX: Tiered Execution Engine")
+
+# --- STEP 1: SELECT YOUR WARRIOR CLASS ---
+st.header("Step 1: Choose Your Setup Tier")
+setup_type = st.selectbox("Trading Style", ["Day Scalper", "Day Trader", "Swing Trader"])
+
 st.markdown("---")
 
-# 1. SMC Context
-st.subheader("Step 1: SMC Context")
-col1, col2 = st.columns(2)
+# --- STEP 2: DYNAMIC LOGIC BASED ON TIER ---
+col1, col2 = st.columns([2, 1])
 
 with col1:
-    zone = st.selectbox("Current Zone", ["None", "1m Bullish OB", "1m Bearish OB", "Liquidity Sweep", "FVG Tap"])
-with col2:
-    bias = st.toggle("HTF Bias Alignment ✅")
-
-# 2. Order Flow Section (The Shark Signature)
-st.subheader("Step 2: Footprint Confirmation")
-c1, c2, c3 = st.columns(3)
-
-with c1:
-    zero_print = st.checkbox("Zero Print")
-with c2:
-    imbalance = st.checkbox("Stacked Imbalance")
-with c3:
-    poc_flip = st.checkbox("Delta Flip / POC")
-
-# 3. Risk Calculator
-st.subheader("Step 3: Risk & Lot Size")
-col_e, col_sl, col_r = st.columns(3)
-
-with col_e:
-    entry = st.number_input("Entry Price", value=4835.50, step=0.10)
-with col_sl:
-    sl = st.number_input("Stop Loss", value=4832.00, step=0.10)
-with col_r:
-    risk_usd = st.number_input("Risk ($)", value=50)
-
-# Lot Size Logic
-if entry != sl:
-    points = abs(entry - sl)
-    # For Gold (XAUUSD): 1.00 move with 1.00 lot = $100. 
-    # Therefore, Lots = Risk / (Points * 100)
-    lots = risk_usd / (points * 100)
+    st.subheader(f"🛠 {setup_type} Checklist")
     
-    st.info(f"**Calculated Lot Size:** {round(lots, 2)} Lots")
-else:
-    st.warning("Entry and SL cannot be the same.")
+    if setup_type == "Day Scalper":
+        # Scalper needs micro-confluence
+        c1 = st.checkbox("1m Liquidity Sweep")
+        c2 = st.checkbox("Footprint: Zero Print at Wick")
+        c3 = st.checkbox("Footprint: Delta Flip (Aggressive)")
+        c4 = st.checkbox("Session: London/NY Open")
+        logic_gate = all([c1, c2, c3, c4])
+        risk_default = 0.5
 
-# 4. Final Verdict Logic
+    elif setup_type == "Day Trader":
+        # Day Trader needs structural alignment
+        c1 = st.checkbox("H1 Trend Alignment")
+        c2 = st.checkbox("15m CHoCH (Change of Character)")
+        c3 = st.checkbox("Price Tapped 15m FVG/OB")
+        c4 = st.checkbox("Premium/Discount Zone Validation")
+        logic_gate = all([c1, c2, c3, c4])
+        risk_default = 1.0
+
+    else: # Swing Trader
+        # Swing Trader needs high-timeframe confirmation
+        c1 = st.checkbox("Daily Market Structure Break (BOS)")
+        c2 = st.checkbox("H4 POI (Point of Interest) Tap")
+        c3 = st.checkbox("Weekly Bias Alignment")
+        c4 = st.checkbox("Macro Economic Driver (News/DXY)")
+        logic_gate = all([c1, c2, c3, c4])
+        risk_default = 2.0
+
+with col2:
+    st.subheader("💰 Risk Manager")
+    balance = st.number_input("Account Balance ($)", value=2146.11)
+    risk_pct = st.slider("Risk %", 0.1, 5.0, risk_default)
+    entry = st.number_input("Entry Price", format="%.2f")
+    sl = st.number_input("Stop Loss", format="%.2f")
+
+    # Math Engine
+    if entry != sl:
+        risk_usd = balance * (risk_pct / 100)
+        pips = abs(entry - sl)
+        lots = risk_usd / (pips * 100) # Gold Standard
+        st.metric("Calculated Lot Size", f"{round(lots, 2)} Lots")
+        st.metric("Risk in Dollars", f"${round(risk_usd, 2)}")
+
+# --- STEP 3: THE VERDICT ---
 st.markdown("---")
-confluence_met = all([zone != "None", bias, zero_print, imbalance, poc_flip])
-
-if confluence_met:
+if logic_gate:
     st.balloons()
-    st.success("🚀 **SHARK SIGNATURE DETECTED: EXECUTE TRADE!**")
+    st.success(f"🔥 {setup_type.upper()} SETUP VALIDATED: EXECUTE WITH DISCIPLINE")
 else:
-    # Calculating progress
-    checks = [zone != "None", bias, zero_print, imbalance, poc_flip]
-    progress = sum(checks) / len(checks)
-    st.progress(progress)
-    st.warning("🔴 **SIGNAL: WAITING...** (System requires full confluence)")
+    st.warning(f"🛑 SETUP INCOMPLETE: Waiting for {setup_type} confluence...")
 
-# Footer Sidebar
-st.sidebar.title("BlackArrowFX Settings")
-st.sidebar.write("Asset: **XAUUSD (GOLD)**")
-st.sidebar.write(f"Account Risk: {risk_usd}$")
+# Sidebar Info
+st.sidebar.image("https://cdn-icons-png.flaticon.com/512/2533/2533503.png", width=100)
+st.sidebar.write(f"**Mode:** {setup_type}")
+st.sidebar.write("**Asset:** XAUUSD")
