@@ -1,73 +1,76 @@
 import streamlit as st
 
-# Setup & BlackArrow Branding
-st.set_page_config(page_title="BlackArrowFX Multi-Engine", layout="wide")
+# Setup & Branding
+st.set_page_config(page_title="BlackArrowFX | SMC Execution", layout="wide")
 
-st.title("🏹 BlackArrowFX: Tiered Execution Engine")
-
-# --- STEP 1: SELECT YOUR WARRIOR CLASS ---
-st.header("Step 1: Choose Your Setup Tier")
-setup_type = st.selectbox("Trading Style", ["Day Scalper", "Day Trader", "Swing Trader"])
-
+st.title("🏹 BlackArrowFX: SMC Execution Engine")
 st.markdown("---")
 
-# --- STEP 2: DYNAMIC LOGIC BASED ON TIER ---
-col1, col2 = st.columns([2, 1])
-
-with col1:
-    st.subheader(f"🛠 {setup_type} Checklist")
-    
-    if setup_type == "Day Scalper":
-        # Scalper needs micro-confluence
-        c1 = st.checkbox("1m Liquidity Sweep")
-        c2 = st.checkbox("Footprint: Zero Print at Wick")
-        c3 = st.checkbox("Footprint: Delta Flip (Aggressive)")
-        c4 = st.checkbox("Session: London/NY Open")
-        logic_gate = all([c1, c2, c3, c4])
-        risk_default = 0.5
-
-    elif setup_type == "Day Trader":
-        # Day Trader needs structural alignment
-        c1 = st.checkbox("H1 Trend Alignment")
-        c2 = st.checkbox("15m CHoCH (Change of Character)")
-        c3 = st.checkbox("Price Tapped 15m FVG/OB")
-        c4 = st.checkbox("Premium/Discount Zone Validation")
-        logic_gate = all([c1, c2, c3, c4])
-        risk_default = 1.0
-
-    else: # Swing Trader
-        # Swing Trader needs high-timeframe confirmation
-        c1 = st.checkbox("Daily Market Structure Break (BOS)")
-        c2 = st.checkbox("H4 POI (Point of Interest) Tap")
-        c3 = st.checkbox("Weekly Bias Alignment")
-        c4 = st.checkbox("Macro Economic Driver (News/DXY)")
-        logic_gate = all([c1, c2, c3, c4])
-        risk_default = 2.0
-
-with col2:
-    st.subheader("💰 Risk Manager")
+# --- SIDEBAR: ACCOUNT & RISK ---
+with st.sidebar:
+    st.header("💰 Risk Management")
     balance = st.number_input("Account Balance ($)", value=2146.11)
-    risk_pct = st.slider("Risk %", 0.1, 5.0, risk_default)
-    entry = st.number_input("Entry Price", format="%.2f")
-    sl = st.number_input("Stop Loss", format="%.2f")
+    risk_pct = 1.0 # Fixed at 1% per your plan
+    st.info(f"Risk per Trade: {risk_pct}% (${round(balance * (risk_pct/100), 2)})")
+    
+    st.header("📊 Strategy Params")
+    st.write("**Management:** SL to BE at 1:2 RR")
+    st.write("**Asset:** XAUUSD / GOLD")
 
-    # Math Engine
+# --- PHASE 1: HTF FRAMEWORK ---
+st.header("Phase 1: 4H HTF Framework")
+col_bias, col_poi = st.columns(2)
+
+with col_bias:
+    bias = st.radio("Analyze 4H Bias", ["Bullish 🟢", "Bearish 🔴", "Neutral ⚪"])
+with col_poi:
+    poi_type = st.multiselect("HTF Point of Interest (POI)", 
+                               ["Major High/Low", "4H Order Block", "4H Imbalance"])
+
+# --- PHASE 2: LTF REFINEMENT (15M/5M) ---
+st.header("Phase 2: LTF Refinement & Entry")
+col_liquidity, col_structure = st.columns(2)
+
+with col_liquidity:
+    st.subheader("The Purge")
+    purge = st.toggle("Liquidity Purged within POI? 💧")
+    
+with col_structure:
+    st.subheader("The Shift")
+    mss = st.toggle("Market Structure Shift (Impulsive) ⚡")
+    fvg_created = st.checkbox("Clear Imbalance Created?")
+
+# --- PHASE 3: THE ORDER BLOCK CHECKLIST ---
+st.subheader("Phase 3: The Entry OB Validation")
+c1, c2, c3 = st.columns(3)
+ob_bos = c1.checkbox("OB caused the BOS/MSS")
+ob_extreme = c2.checkbox("OB is in the Extreme Zone")
+ob_imbalance = c3.checkbox("OB created Imbalance")
+
+# --- POSITION CALCULATOR ---
+st.markdown("---")
+st.header("Phase 4: Calculate & Execute")
+calc_col1, calc_col2 = st.columns(2)
+
+with calc_col1:
+    entry = st.number_input("Entry Price", value=0.00, format="%.2f")
+    sl = st.number_input("Stop Loss", value=0.00, format="%.2f")
+
+with calc_col2:
     if entry != sl:
         risk_usd = balance * (risk_pct / 100)
         pips = abs(entry - sl)
-        lots = risk_usd / (pips * 100) # Gold Standard
-        st.metric("Calculated Lot Size", f"{round(lots, 2)} Lots")
-        st.metric("Risk in Dollars", f"${round(risk_usd, 2)}")
+        lots = risk_usd / (pips * 100)
+        
+        st.metric("Suggested Lot Size", f"{round(lots, 2)} Lots")
+        tp_target = entry + ((entry - sl) * 2) if bias == "Bullish 🟢" else entry - ((sl - entry) * 2)
+        st.write(f"**Breakeven Target (1:2 RR):** {round(tp_target, 2)}")
 
-# --- STEP 3: THE VERDICT ---
-st.markdown("---")
-if logic_gate:
+# --- FINAL VERDICT ---
+all_confluence = all([purge, mss, fvg_created, ob_bos, ob_extreme, ob_imbalance])
+
+if all_confluence and bias != "Neutral ⚪":
     st.balloons()
-    st.success(f"🔥 {setup_type.upper()} SETUP VALIDATED: EXECUTE WITH DISCIPLINE")
+    st.success("🚀 SMC SETUP VALIDATED: SHARK SIGNATURE DETECTED!")
 else:
-    st.warning(f"🛑 SETUP INCOMPLETE: Waiting for {setup_type} confluence...")
-
-# Sidebar Info
-st.sidebar.image("https://cdn-icons-png.flaticon.com/512/2533/2533503.png", width=100)
-st.sidebar.write(f"**Mode:** {setup_type}")
-st.sidebar.write("**Asset:** XAUUSD")
+    st.warning("⚠️ PATIENCE: Waiting for all SMC criteria to align...")
