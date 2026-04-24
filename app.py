@@ -1,74 +1,118 @@
 import streamlit as st
 
-st.set_page_config(page_title="BlackArrowFX PRO", layout="wide")
+# ---------------- CONFIG ---------------- #
+st.set_page_config(page_title="BlackArrowFX Mechanical Engine", layout="wide")
 
-st.title("🏹 BlackArrowFX: SMC Execution Engine PRO")
-st.caption("Institutional Logic | Precision Execution")
+st.title("🏹 BlackArrowFX: Mechanical Trading Engine")
+st.caption("Rule-Based Execution | Zero Emotion | SMC Framework")
 st.markdown("---")
 
 # ---------------- SIDEBAR ---------------- #
 with st.sidebar:
     st.header("💰 Risk Management")
+
     balance = st.number_input("Account Balance ($)", value=2146.11)
 
-    daily_loss_count = st.number_input("Losses Today", min_value=0, step=1, value=0)
-    if daily_loss_count >= 2:
-        st.error("🛑 DAILY STOP HIT")
+    daily_loss = st.number_input("Losses Today", min_value=0, step=1, value=0)
+    if daily_loss >= 2:
+        st.error("🛑 DAILY STOP HIT — TERMINAL LOCKED")
         st.stop()
 
-    risk_pct = st.slider("Risk %", 0.25, 1.0, 1.0, step=0.25)
+    risk_pct = st.slider("Risk per Trade (%)", 0.25, 1.0, 1.0, step=0.25)
     risk_usd = balance * (risk_pct / 100)
-    st.info(f"Risk: ${round(risk_usd, 2)}")
+
+    st.info(f"Risk per Trade: ${round(risk_usd,2)}")
 
     st.header("⏰ Session Filter")
-    session = st.selectbox("Trading Session", ["Asia", "London", "New York"])
+    session = st.selectbox("Session", ["Asia", "London", "New York"])
 
     st.header("🌍 News Filter")
-    news_ok = st.toggle("No High Impact News?")
+    news_ok = st.toggle("No High Impact News (30–60min)")
+
+# ---------------- PHASE 0 ---------------- #
+st.header("PHASE 0: HARD FILTER")
+
+f1, f2, f3 = st.columns(3)
+
+with f1:
+    session_ok = session in ["London", "New York"]
+    st.checkbox("Valid Session (London/NY)", value=session_ok, disabled=True)
+
+with f2:
+    st.checkbox("No High Impact News", value=news_ok, disabled=True)
+
+with f3:
+    st.checkbox("Daily Loss < 2", value=(daily_loss < 2), disabled=True)
+
+hard_filter = session_ok and news_ok and (daily_loss < 2)
 
 # ---------------- PHASE 1 ---------------- #
-st.header("Phase 1: HTF Bias")
+st.markdown("---")
+st.header("PHASE 1: HTF BIAS (H1/H4)")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    trend = st.radio("Trend", ["Bullish", "Bearish", "Ranging"])
+    trend = st.radio("Market Structure", ["Bullish", "Bearish", "Ranging"])
 
 with col2:
-    htf_confirm = st.checkbox("HTF Structure Confirmed")
+    htf_confirm = st.checkbox("HTF Structure Confirmed (HH/HL or LH/LL)")
+
+bias_valid = trend != "Ranging" and htf_confirm
 
 # ---------------- PHASE 2 ---------------- #
-st.header("Phase 2: LTF Confirmation")
+st.markdown("---")
+st.header("PHASE 2: POI VALIDATION")
 
-c1, c2 = st.columns(2)
+poi1, poi2, poi3 = st.columns(3)
 
-with c1:
+with poi1:
+    displacement = st.checkbox("Strong Displacement")
+
+with poi2:
+    liquidity = st.checkbox("Liquidity Sweep")
+
+with poi3:
+    bos = st.checkbox("Break of Structure (BOS)")
+
+poi_valid = displacement and liquidity and bos
+
+# ---------------- PHASE 3 ---------------- #
+st.markdown("---")
+st.header("PHASE 3: ENTRY TRIGGER (M5)")
+
+t1, t2, t3 = st.columns(3)
+
+with t1:
     mss = st.checkbox("MSS / CHoCH")
-    sweep = st.checkbox("Liquidity Sweep")
 
-with c2:
-    ob = st.checkbox("Valid Order Block")
+with t2:
     fvg = st.checkbox("FVG Present")
 
-# ---------------- SCORING ENGINE ---------------- #
+with t3:
+    ob = st.checkbox("Valid Order Block")
+
+trigger_valid = mss and fvg and ob
+
+# ---------------- SCORING ---------------- #
 score = 0
 
-if trend != "Ranging" and htf_confirm:
+if bias_valid:
     score += 3
+
+if poi_valid:
+    score += 2
+
+if liquidity:
+    score += 2
 
 if mss:
     score += 2
 
-if sweep:
-    score += 2
-
-if ob:
-    score += 2
-
-if fvg:
+if fvg or ob:
     score += 1
 
-# ---------------- TRADE GRADE ---------------- #
+# ---------------- GRADE ---------------- #
 if score >= 8:
     grade = "A+ SETUP 🚀"
 elif score >= 6:
@@ -76,49 +120,65 @@ elif score >= 6:
 else:
     grade = "NO TRADE ❌"
 
-# ---------------- SESSION FILTER ---------------- #
-session_ok = session in ["London", "New York"]
-
-# ---------------- FINAL LOGIC ---------------- #
+# ---------------- EXECUTION LOGIC ---------------- #
 st.markdown("---")
-st.header("Execution Decision")
+st.header("FINAL DECISION ENGINE")
 
 st.metric("Setup Score", score)
 st.write(f"Trade Grade: **{grade}**")
 
-if trend == "Ranging":
-    st.error("Market is ranging — NO TRADE")
+if not hard_filter:
+    st.error("❌ BLOCKED: Hard filter not satisfied")
 
-elif not session_ok:
-    st.warning("Avoid Asia session for Gold")
+elif not bias_valid:
+    st.error("❌ NO TRADE: Invalid HTF Bias")
 
-elif not news_ok:
-    st.warning("High impact news risk")
+elif not poi_valid:
+    st.error("❌ NO TRADE: Weak POI")
+
+elif not trigger_valid:
+    st.warning("⚠️ WAIT: No entry confirmation yet")
 
 elif score >= 8:
-    st.success("EXECUTE TRADE")
+    st.success("🚀 EXECUTE TRADE — ALL CONDITIONS MET")
     st.balloons()
 
 elif score >= 6:
-    st.warning("Optional Trade — Lower Confidence")
+    st.warning("⚠️ Optional Trade (Lower Confidence)")
 
 else:
-    st.error("NO TRADE — Conditions not met")
+    st.error("❌ NO TRADE")
 
-# ---------------- POSITION CALC ---------------- #
+# ---------------- POSITION CALCULATOR ---------------- #
 st.markdown("---")
-st.header("Position Calculator")
+st.header("POSITION EXECUTION")
 
-entry = st.number_input("Entry", value=0.0)
-sl = st.number_input("SL", value=0.0)
+c1, c2, c3 = st.columns(3)
 
-if entry > 0 and sl > 0:
-    pip_dist = abs(entry - sl) * 10
-    lot = risk_usd / (pip_dist * 10) if pip_dist > 0 else 0
+with c1:
+    entry = st.number_input("Entry Price", value=0.0, format="%.2f")
+    sl_input = st.number_input("Structural SL", value=0.0, format="%.2f")
 
-    tp1 = entry + (entry - sl) * 1.5
-    tp2 = entry + (entry - sl) * 3
+with c2:
+    if entry > 0 and sl_input > 0:
+        buffer = 1.5
 
-    st.write(f"Lot Size: {round(lot,2)}")
-    st.write(f"TP1 (1.5R): {round(tp1,2)}")
-    st.write(f"TP2 (3R): {round(tp2,2)}")
+        if trend == "Bullish":
+            final_sl = sl_input - buffer
+        else:
+            final_sl = sl_input + buffer
+
+        pip_dist = abs(entry - final_sl) * 10
+        lot = risk_usd / (pip_dist * 10) if pip_dist > 0 else 0
+
+        st.metric("Lot Size", f"{round(lot,2)}")
+        st.write(f"Final SL: {round(final_sl,2)}")
+        st.caption(f"SL Distance: {round(pip_dist,1)} pips")
+
+with c3:
+    if entry > 0 and sl_input > 0:
+        tp1 = entry + ((entry - final_sl) * 1.5)
+        tp2 = entry + ((entry - final_sl) * 3)
+
+        st.write(f"TP1 (1.5R): {round(tp1,2)}")
+        st.write(f"TP2 (3R): {round(tp2,2)}")
