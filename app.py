@@ -12,10 +12,9 @@ with st.sidebar:
     st.header("💰 Risk Management")
     balance = st.number_input("Account Balance ($)", value=2146.11)
     
-    # New: Daily Stop Circuit Breaker
     daily_loss_count = st.number_input("Losses Today", min_value=0, step=1, value=0)
     if daily_loss_count >= 2:
-        st.error("🛑 DAILY STOP REACHED: Terminal Closed. See you tomorrow!")
+        st.error("🛑 DAILY STOP REACHED: Terminal Closed.")
         st.stop()
     
     risk_pct = st.slider("Risk per Trade (%)", 0.25, 1.0, 1.0, step=0.25)
@@ -28,88 +27,86 @@ with st.sidebar:
                          "Pullback (Mean Reversion)", 
                          "Reversal (Counter Trend)"])
     
-    # New: News Filter
     st.header("🌍 Macro Filter")
-    news_checked = st.toggle("High-Impact News Checked? (Red Folder)")
+    news_checked = st.toggle("High-Impact News Checked?")
     if not news_checked:
-        st.warning("Check ForexFactory before executing!")
+        st.warning("Check ForexFactory first!")
 
-# --- PHASE 1: THE ANCHOR (HTF) ---
-st.header("Phase 1: The Major Box (H4/H1)")
-a1, a2, a3 = st.columns(3)
+# --- PHASE 1: MAJOR STRUCTURE (H4/H1) ---
+st.header("Phase 1: Major Structural Box (The Anchor)")
+m_col1, m_col2 = st.columns(2)
 
-with a1:
-    htf_bias = st.radio("Major Structure", ["Uptrend (HH/HL) 📈", "Downtrend (LL/LH) 📉", "Ranging ↔️"])
-with a2:
-    market_cond = st.radio("Market Condition", ["Established Trend", "High Volatility", "Trend Exhaustion"])
-with a3:
-    st.write("**Box Alignment Check**")
-    major_check = st.checkbox("H4/H1 Trend Identified")
-    middle_check = st.checkbox("M30/M15 Path Clear (No Obstacles)")
+with m_col1:
+    major_trend = st.radio("Major Trend Direction", ["Bullish (HH/HL) 📈", "Bearish (LH/LL) 📉", "Ranging ↔️"])
+    
+with m_col2:
+    st.subheader("Major Swing Points")
+    major_swing = st.multiselect("Confirm Major Points", 
+                                ["Major HH (Broken)", "Major HL (Protected)", 
+                                 "Major LL (Broken)", "Major LH (Protected)"])
+    major_aligned = st.checkbox("HTF Trend Identified & Confirmed")
 
-# --- PHASE 2: THE TRIGGER (M5) ---
-st.header("Phase 2: The Minor Box (M5 Execution)")
-col_structure, col_confluence = st.columns(2)
+# --- PHASE 2: MINOR STRUCTURE (M5) ---
+st.header("Phase 2: Minor Structural Box (The Trigger)")
 
-with col_structure:
-    st.subheader("Swing Point Mapping")
-    points = st.multiselect("M5 Points Identifed", ["HH", "HL", "LH", "LL"])
-    mss = st.toggle("MSS / ChoCh (The Shift) ⚡")
+l_col1, l_col2 = st.columns(2)
 
-with col_confluence:
-    st.subheader("SMC Checklist")
-    purge = st.toggle("Liquidity Purge (The Anchor) 💧")
+with l_col1:
+    st.subheader("Internal Swing Mapping")
+    minor_points = st.multiselect("M5 Internal Points", ["Minor HH", "Minor HL", "Minor LH", "Minor LL"])
+    mss = st.toggle("MSS / ChoCh (Trend Flip) ⚡")
+
+with l_col2:
+    st.subheader("SMC Confluence")
+    purge = st.toggle("Liquidity Purge (Sweep) 💧")
     fvg = st.checkbox("FVG / Imbalance Created?")
-    ob_valid = st.checkbox("OB Validation (BOS + Extreme Zone)")
+    ob_valid = st.checkbox("OB Validation (BOS + Extreme)")
 
-# --- PHASE 3: CALCULATE & EXECUTE ---
+# --- PHASE 3: POSITION CALCULATOR ---
 st.markdown("---")
-st.header("Phase 3: Risk & Position Sizing")
+st.header("Phase 3: Execution & Safety")
 calc1, calc2, calc3 = st.columns(3)
 
 with calc1:
     entry = st.number_input("Entry Price", value=0.0, format="%.2f")
-    structural_sl = st.number_input("Structural SL (Anchor Point)", value=0.0, format="%.2f")
+    # Rule: This is usually the most recent MINOR swing point
+    structural_sl = st.number_input("Structural SL (Minor HL/LH)", value=0.0, format="%.2f")
 
 with calc2:
-    # Gold 15-pip buffer (1.50 points)
-    buffer_val = 1.50
+    buffer_val = 1.50 # +15 Pips for Gold
     
     if entry != 0 and structural_sl != 0:
-        # Automated SL adjustment based on Bias
-        if "Uptrend" in htf_bias:
+        if "Bullish" in major_trend:
             final_sl = structural_sl - buffer_val
         else:
             final_sl = structural_sl + buffer_val
             
-        pips_dist = abs(entry - final_sl) * 10 # Convert to Gold pips
-        # Lot sizing for Gold: Risk / (Pips * Pip Value)
+        pips_dist = abs(entry - final_sl) * 10
         lots = risk_usd / (pips_dist * 10) if pips_dist > 0 else 0
         
         st.metric("Suggested Lot Size", f"{round(lots, 2)} Lots")
-        st.write(f"**Final SL (with +15pips):** {round(final_sl, 2)}")
-        st.caption(f"Risking: {round(pips_dist, 1)} Pips")
+        st.write(f"**Final SL Price:** {round(final_sl, 2)}")
+        st.caption(f"SL Distance: {round(pips_dist, 1)} pips")
 
 with calc3:
     if entry != 0 and structural_sl != 0:
-        # Trade Management Targets
-        tp_1 = entry + ((entry - final_sl) * 1)
-        tp_2 = entry + ((entry - final_sl) * 2)
+        tp_be = entry + ((entry - final_sl) * 1.5) # 1.5 RR for BE
+        tp_final = entry + ((entry - final_sl) * 3) # 1:3 RR Target
         
-        st.write(f"**Target 1 (1:1 - Move to BE):** {round(tp_1, 2)}")
-        st.write(f"**Target 2 (1:2 - Partial/Exit):** {round(tp_2, 2)}")
+        st.write(f"**Breakeven Target (1.5R):** {round(tp_be, 2)}")
+        st.write(f"**Final Target (1:3R):** {round(tp_final, 2)}")
 
 # --- FINAL VERDICT ---
 st.markdown("---")
-# Alignment check based on your Step 1 rule
-no_trade_bias = htf_bias == "Ranging ↔️"
-all_confluence = all([mss, purge, fvg, ob_valid, news_checked, major_check, middle_check])
+# Logic: Must have Major Alignment + Minor Trigger
+alignment_ok = major_aligned and major_trend != "Ranging ↔️"
+trigger_ok = mss and purge and fvg and ob_valid
 
-if all_confluence and not no_trade_bias:
+if alignment_ok and trigger_ok and news_checked:
     st.balloons()
-    st.success(f"🚀 SMC SETUP VALIDATED: Executing {method}")
-    st.markdown(f"> **Final Confirmation:** H4 Trend matches M5 Shift. Risk is set to {risk_pct}%.")
-elif no_trade_bias:
-    st.error("🛑 NO TRADE: H4/H1 is Ranging. Wait for alignment.")
+    st.success(f"🚀 BLACKARROW EXECUTION: {method} Protocol Active")
+    st.info("Checklist: Major Trend confirmed + Minor MSS detected. Risk is locked.")
+elif major_trend == "Ranging ↔️":
+    st.error("🛑 NO TRADE: Market is Ranging. Wait for a Major Swing break.")
 else:
-    st.warning("⚠️ PATIENCE: Waiting for all Phase 1 & 2 criteria to align...")
+    st.warning("⚠️ WAITING: Ensure Major Alignment and Minor Trigger are both confirmed.")
