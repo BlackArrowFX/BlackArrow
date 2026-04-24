@@ -1,112 +1,124 @@
 import streamlit as st
 
-# Setup & Branding
-st.set_page_config(page_title="BlackArrowFX | SMC Execution", layout="wide")
+st.set_page_config(page_title="BlackArrowFX PRO", layout="wide")
 
-st.title("🏹 BlackArrowFX: SMC Execution Engine")
-st.caption("Precision-Based Smart Money Execution | Axi Select Standard")
+st.title("🏹 BlackArrowFX: SMC Execution Engine PRO")
+st.caption("Institutional Logic | Precision Execution")
 st.markdown("---")
 
-# --- SIDEBAR: ACCOUNT & RISK ---
+# ---------------- SIDEBAR ---------------- #
 with st.sidebar:
     st.header("💰 Risk Management")
     balance = st.number_input("Account Balance ($)", value=2146.11)
-    
+
     daily_loss_count = st.number_input("Losses Today", min_value=0, step=1, value=0)
     if daily_loss_count >= 2:
-        st.error("🛑 DAILY STOP REACHED: Terminal Closed.")
+        st.error("🛑 DAILY STOP HIT")
         st.stop()
-    
-    risk_pct = st.slider("Risk per Trade (%)", 0.25, 1.0, 1.0, step=0.25)
+
+    risk_pct = st.slider("Risk %", 0.25, 1.0, 1.0, step=0.25)
     risk_usd = balance * (risk_pct / 100)
-    st.info(f"Risk per Trade: ${round(risk_usd, 2)}")
+    st.info(f"Risk: ${round(risk_usd, 2)}")
 
-    st.header("⚙️ Execution Method")
-    method = st.selectbox("Strategy Edge", 
-                        ["Trend Following (Continuation)", 
-                         "Pullback (Mean Reversion)", 
-                         "Reversal (Counter Trend)"])
-    
-    st.header("🌍 Macro Filter")
-    news_checked = st.toggle("High-Impact News Checked?")
-    if not news_checked:
-        st.warning("Check ForexFactory first!")
+    st.header("⏰ Session Filter")
+    session = st.selectbox("Trading Session", ["Asia", "London", "New York"])
 
-# --- PHASE 1: MAJOR STRUCTURE (H4/H1) ---
-st.header("Phase 1: Major Structural Box (The Anchor)")
-m_col1, m_col2 = st.columns(2)
+    st.header("🌍 News Filter")
+    news_ok = st.toggle("No High Impact News?")
 
-with m_col1:
-    major_trend = st.radio("Major Trend Direction", ["Bullish (HH/HL) 📈", "Bearish (LH/LL) 📉", "Ranging ↔️"])
-    
-with m_col2:
-    st.subheader("Major Swing Points")
-    major_swing = st.multiselect("Confirm Major Points", 
-                                ["Major HH (Broken)", "Major HL (Protected)", 
-                                 "Major LL (Broken)", "Major LH (Protected)"])
-    major_aligned = st.checkbox("HTF Trend Identified & Confirmed")
+# ---------------- PHASE 1 ---------------- #
+st.header("Phase 1: HTF Bias")
 
-# --- PHASE 2: MINOR STRUCTURE (M5) ---
-st.header("Phase 2: Minor Structural Box (The Trigger)")
+col1, col2 = st.columns(2)
 
-l_col1, l_col2 = st.columns(2)
+with col1:
+    trend = st.radio("Trend", ["Bullish", "Bearish", "Ranging"])
 
-with l_col1:
-    st.subheader("Internal Swing Mapping")
-    minor_points = st.multiselect("M5 Internal Points", ["Minor HH", "Minor HL", "Minor LH", "Minor LL"])
-    mss = st.toggle("MSS / ChoCh (Trend Flip) ⚡")
+with col2:
+    htf_confirm = st.checkbox("HTF Structure Confirmed")
 
-with l_col2:
-    st.subheader("SMC Confluence")
-    purge = st.toggle("Liquidity Purge (Sweep) 💧")
-    fvg = st.checkbox("FVG / Imbalance Created?")
-    ob_valid = st.checkbox("OB Validation (BOS + Extreme)")
+# ---------------- PHASE 2 ---------------- #
+st.header("Phase 2: LTF Confirmation")
 
-# --- PHASE 3: POSITION CALCULATOR ---
-st.markdown("---")
-st.header("Phase 3: Execution & Safety")
-calc1, calc2, calc3 = st.columns(3)
+c1, c2 = st.columns(2)
 
-with calc1:
-    entry = st.number_input("Entry Price", value=0.0, format="%.2f")
-    # Rule: This is usually the most recent MINOR swing point
-    structural_sl = st.number_input("Structural SL (Minor HL/LH)", value=0.0, format="%.2f")
+with c1:
+    mss = st.checkbox("MSS / CHoCH")
+    sweep = st.checkbox("Liquidity Sweep")
 
-with calc2:
-    buffer_val = 1.50 # +15 Pips for Gold
-    
-    if entry != 0 and structural_sl != 0:
-        if "Bullish" in major_trend:
-            final_sl = structural_sl - buffer_val
-        else:
-            final_sl = structural_sl + buffer_val
-            
-        pips_dist = abs(entry - final_sl) * 10
-        lots = risk_usd / (pips_dist * 10) if pips_dist > 0 else 0
-        
-        st.metric("Suggested Lot Size", f"{round(lots, 2)} Lots")
-        st.write(f"**Final SL Price:** {round(final_sl, 2)}")
-        st.caption(f"SL Distance: {round(pips_dist, 1)} pips")
+with c2:
+    ob = st.checkbox("Valid Order Block")
+    fvg = st.checkbox("FVG Present")
 
-with calc3:
-    if entry != 0 and structural_sl != 0:
-        tp_be = entry + ((entry - final_sl) * 1.5) # 1.5 RR for BE
-        tp_final = entry + ((entry - final_sl) * 3) # 1:3 RR Target
-        
-        st.write(f"**Breakeven Target (1.5R):** {round(tp_be, 2)}")
-        st.write(f"**Final Target (1:3R):** {round(tp_final, 2)}")
+# ---------------- SCORING ENGINE ---------------- #
+score = 0
 
-# --- FINAL VERDICT ---
-st.markdown("---")
-# Logic: Must have Major Alignment + Minor Trigger
-alignment_ok = major_aligned and major_trend != "Ranging ↔️"
-trigger_ok = mss and purge and fvg and ob_valid
+if trend != "Ranging" and htf_confirm:
+    score += 3
 
-if alignment_ok and trigger_ok and news_checked:
-    st.balloons()
-    st.success(f"🚀 BLACKARROW EXECUTION: {method} Protocol Active")
-    st.info("Checklist: Major Trend confirmed + Minor MSS detected. Risk is locked.")
-elif major_trend == "Ranging ↔️":
-    st.error("🛑 NO TRADE: Market is Ranging. Wait for a Major Swing break.")
+if mss:
+    score += 2
+
+if sweep:
+    score += 2
+
+if ob:
+    score += 2
+
+if fvg:
+    score += 1
+
+# ---------------- TRADE GRADE ---------------- #
+if score >= 8:
+    grade = "A+ SETUP 🚀"
+elif score >= 6:
+    grade = "B SETUP ⚠️"
 else:
-    st.warning("⚠️ WAITING: Ensure Major Alignment and Minor Trigger are both confirmed.")
+    grade = "NO TRADE ❌"
+
+# ---------------- SESSION FILTER ---------------- #
+session_ok = session in ["London", "New York"]
+
+# ---------------- FINAL LOGIC ---------------- #
+st.markdown("---")
+st.header("Execution Decision")
+
+st.metric("Setup Score", score)
+st.write(f"Trade Grade: **{grade}**")
+
+if trend == "Ranging":
+    st.error("Market is ranging — NO TRADE")
+
+elif not session_ok:
+    st.warning("Avoid Asia session for Gold")
+
+elif not news_ok:
+    st.warning("High impact news risk")
+
+elif score >= 8:
+    st.success("EXECUTE TRADE")
+    st.balloons()
+
+elif score >= 6:
+    st.warning("Optional Trade — Lower Confidence")
+
+else:
+    st.error("NO TRADE — Conditions not met")
+
+# ---------------- POSITION CALC ---------------- #
+st.markdown("---")
+st.header("Position Calculator")
+
+entry = st.number_input("Entry", value=0.0)
+sl = st.number_input("SL", value=0.0)
+
+if entry > 0 and sl > 0:
+    pip_dist = abs(entry - sl) * 10
+    lot = risk_usd / (pip_dist * 10) if pip_dist > 0 else 0
+
+    tp1 = entry + (entry - sl) * 1.5
+    tp2 = entry + (entry - sl) * 3
+
+    st.write(f"Lot Size: {round(lot,2)}")
+    st.write(f"TP1 (1.5R): {round(tp1,2)}")
+    st.write(f"TP2 (3R): {round(tp2,2)}")
