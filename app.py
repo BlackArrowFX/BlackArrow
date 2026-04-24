@@ -5,7 +5,7 @@ import re
 st.set_page_config(page_title="BlackArrowFX POI Engine", layout="wide")
 
 st.title("🏹 BlackArrowFX: POI Mechanical Trading Engine")
-st.caption("Paste → Parse → Select → Execute | Zero Emotion System")
+st.caption("Paste → Parse → Select → Execute | Robust POI System")
 st.markdown("---")
 
 
@@ -35,6 +35,7 @@ with st.sidebar:
     news_ok = st.toggle("No High Impact News")
 
     st.markdown("---")
+
     st.header("📊 Journal")
 
     c1, c2 = st.columns(2)
@@ -66,29 +67,29 @@ if st.session_state.loss_count >= 2 or st.session_state.loss_amount >= max_loss_
     st.stop()
 
 
-# ---------------- HARD FILTER ---------------- #
-st.header("PHASE 0: FILTERS")
+# ---------------- FILTER ---------------- #
+st.header("PHASE 0: HARD FILTER")
 
 session_ok = session in ["London", "New York"]
 
 st.checkbox("Valid Session", value=session_ok, disabled=True)
-st.checkbox("News Clear", value=news_ok, disabled=True)
+st.checkbox("News Cleared", value=news_ok, disabled=True)
 
 hard_ok = session_ok and news_ok
 
 
-# ---------------- PASTE POI ENGINE ---------------- #
+# ---------------- 📋 PASTE POI INPUT ---------------- #
 st.markdown("---")
-st.header("📋 Paste Your POI Trading Plan")
+st.header("📋 Paste POI Trading Plan")
 
 raw_text = st.text_area(
-    "Paste POI (your format supported)",
+    "Paste your POI zones here",
     height=250,
-    placeholder="ZONE TYPE PRICE RANGE SIGNIFICANCE"
+    placeholder="Extreme Supply (Key) $4710 - $4712 ... etc"
 )
 
 
-# ---------------- PARSER ---------------- #
+# ---------------- 🧠 ROBUST POI PARSER ---------------- #
 POI_DB = {}
 
 if raw_text:
@@ -97,44 +98,54 @@ if raw_text:
 
     for line in lines:
 
-        if len(line.strip()) < 10:
+        line = line.strip()
+
+        if len(line) < 8:
             continue
 
-        # extract price range (4710 - 4712)
-        match = re.search(r"(\d+\.?\d*)\s*[–-]\s*(\d+\.?\d*)", line)
+        # normalize dash types
+        line = line.replace("–", "-")
 
-        if match:
+        # extract price range (handles messy formats)
+        match = re.search(r"(\d{3,5}\.?\d*)\s*-\s*(\d{3,5}\.?\d*)", line)
 
+        if not match:
+            continue
+
+        try:
             low = float(match.group(1))
             high = float(match.group(2))
+        except:
+            continue
 
-            # zone name = before first $
-            zone_name = line.split("$")[0].strip()
+        # zone name extraction (before $ or price)
+        zone_name = line.split("$")[0].strip()
 
-            POI_DB[zone_name] = {
-                "low": low,
-                "high": high,
-                "desc": line
-            }
+        if zone_name == "":
+            zone_name = f"Zone {len(POI_DB)+1}"
 
-    if POI_DB:
-        st.success(f"✅ Parsed {len(POI_DB)} POI Zones")
+        POI_DB[zone_name] = {
+            "low": low,
+            "high": high,
+            "desc": line
+        }
+
+    st.success(f"✅ Parsed {len(POI_DB)} POI Zones")
 
 
-# ---------------- POI SELECTOR ---------------- #
+# ---------------- 🏆 POI SELECTOR ---------------- #
 st.markdown("---")
 st.header("🏆 POI Selection Engine")
+
+price = st.number_input("Current XAUUSD Price", value=0.0)
 
 selected_poi = "No Man's Land"
 inside_zone = False
 poi_valid = False
 
-price = st.number_input("Current XAUUSD Price", value=0.0)
+if len(POI_DB) > 0:
 
-if POI_DB:
-
-    selected_poi = st.selectbox("Select Zone", list(POI_DB.keys()))
-
+    selected_poi = st.selectbox("Select POI Zone", list(POI_DB.keys()))
     poi = POI_DB[selected_poi]
 
     st.write("🧠 Zone Data:")
@@ -144,9 +155,9 @@ if POI_DB:
 
     if poi["low"] <= price <= poi["high"]:
         inside_zone = True
-        st.success("✅ PRICE INSIDE POI")
+        st.success("✅ PRICE INSIDE POI ZONE")
     else:
-        st.error("❌ PRICE OUTSIDE POI")
+        st.error("❌ PRICE OUTSIDE ZONE")
 
 else:
     st.warning("⚠️ Paste POI first")
@@ -164,7 +175,7 @@ bias_ok = trend != "Ranging" and htf_confirm
 
 # ---------------- ENTRY CONFIRMATION ---------------- #
 st.markdown("---")
-st.header("PHASE 2: ENTRY")
+st.header("PHASE 2: ENTRY CONFIRMATION")
 
 mss = st.checkbox("MSS / CHoCH")
 sweep = st.checkbox("Liquidity Sweep")
@@ -179,24 +190,24 @@ score = 0
 
 if hard_ok:
     score += 2
+
 if bias_ok:
     score += 3
+
 if poi_valid:
     score += 2
+
 if inside_zone:
     score += 3
+
 if mss:
     score += 2
+
 if fvg or ob:
     score += 1
 
 
-# ---------------- DECISION ---------------- #
-st.markdown("---")
-st.header("EXECUTION ENGINE")
-
-st.metric("Score", score)
-
+# ---------------- GRADE ---------------- #
 if score >= 9:
     grade = "A+ EXECUTE 🚀"
 elif score >= 7:
@@ -204,16 +215,22 @@ elif score >= 7:
 else:
     grade = "NO TRADE ❌"
 
+
+# ---------------- FINAL ENGINE ---------------- #
+st.markdown("---")
+st.header("EXECUTION ENGINE")
+
+st.metric("Score", score)
 st.write(f"Grade: **{grade}**")
 
 if not hard_ok:
     st.error("BLOCKED: Session/News")
 
 elif not poi_valid:
-    st.error("NO TRADE: No POI")
+    st.error("NO TRADE: No POI parsed")
 
 elif not bias_ok:
-    st.error("NO TRADE: Bias weak")
+    st.error("NO TRADE: Weak bias")
 
 elif not inside_zone:
     st.error("NO TRADE: Price outside POI")
@@ -238,8 +255,8 @@ st.header("POSITION CALCULATOR")
 c1, c2, c3 = st.columns(3)
 
 with c1:
-    entry = st.number_input("Entry", value=0.0)
-    sl = st.number_input("SL", value=0.0)
+    entry = st.number_input("Entry Price", value=0.0)
+    sl = st.number_input("Stop Loss", value=0.0)
 
 with c2:
     if entry > 0 and sl > 0:
@@ -247,7 +264,7 @@ with c2:
         lot = risk_usd / (pip_dist * 10) if pip_dist > 0 else 0
 
         st.metric("Lot Size", round(lot,2))
-        st.write(f"Pips: {round(pip_dist,1)}")
+        st.write(f"SL Distance: {round(pip_dist,1)} pips")
 
 with c3:
     if entry > 0 and sl > 0:
