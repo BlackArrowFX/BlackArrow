@@ -28,6 +28,7 @@ with st.sidebar:
         current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
 
     st.header("🌍 News Filter")
+    # MASTER LOCK
     news_ok = st.toggle("No High Impact News", value=False)
     if not news_ok:
         st.error("🚨 SYSTEM LOCKED: News must be cleared.")
@@ -78,40 +79,33 @@ with c15m:
 
 # ---------------- 5M MICRO-CONFIRMATION ---------------- #
 st.markdown("---")
-st.subheader("⚡ 5M MICRO-CONFIRMATION")
+st.subheader("⚡ 5M MICRO-CONFIRMATION (Execution Trigger)")
 c5_1, c5_2, c5_3 = st.columns(3)
 
 with c5_1:
-    m5_trend = st.radio("5M Current Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="m5_t", disabled=not bias_15m_ok)
+    m5_trend = st.radio("5M Trend Selection", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="m5_t", disabled=not bias_15m_ok)
     m5_lock = not bias_15m_ok or m5_trend == "Select..."
 
 with c5_2:
     if m5_trend == "Bearish ⬇️":
-        label_bos = "BOS Price (LL to break)"
-        label_mss = "MSS Price (LH to break)"
+        label_break = "BOS Price (LL to break)"
+        label_rev = "Reversal Price (LH to break)"
     else:
-        label_bos = "BOS Price (HH to break)"
-        label_mss = "MSS Price (HL to break)"
+        label_break = "BOS Price (HH to break)"
+        label_rev = "Reversal Price (HL to break)"
         
-    m5_bos_p = st.number_input(label_bos, value=0.0, format="%.2f", disabled=m5_lock)
-    m5_mss_p = st.number_input(label_mss, value=0.0, format="%.2f", disabled=m5_lock)
+    m5_bos_p = st.number_input(label_break, value=0.0, format="%.2f", disabled=m5_lock)
+    m5_rev_p = st.number_input(label_rev, value=0.0, format="%.2f", disabled=m5_lock)
 
 with c5_3:
-    st.write("**Confirmation Type**")
-    # THE TWO OPTIONS
-    m5_bos_ok = st.checkbox("BOS Confirmed (Trend Continues)", disabled=m5_bos_p == 0)
-    m5_mss_ok = st.checkbox("MSS Confirmed (Trend Reversal)", disabled=m5_mss_p == 0)
-    
-    # Combined logic for Phase 3 unlock
-    m5_confirmed = m5_bos_ok or m5_mss_ok
+    m5_break_ok = st.checkbox("Structure Broken? (BOS/MSS)", disabled=m5_bos_p == 0)
+    m5_fvg_ok = st.checkbox("FVG / Displacement Created?", disabled=not m5_break_ok)
+    m5_trigger = st.checkbox("Price Returned to Entry?", disabled=not m5_fvg_ok)
 
 # ---------------- PHASE 2 & 3 ---------------- #
 st.markdown("---")
-final_ready = m5_confirmed and news_ok
-
-if final_ready:
-    if m5_bos_ok: st.success("📈 TREND CONTINUATION LOCKED: BOS Confirmed.")
-    if m5_mss_ok: st.info("🎯 TREND REVERSAL LOCKED: MSS Confirmed.")
+# Only allow execution if 5M sequence is completed
+final_ready = m5_trigger and news_ok
 
 col_poi, col_exec = st.columns([1, 2])
 
@@ -140,3 +134,6 @@ with col_exec:
             lot_size = (current_risk_usd / pips_dist) / 10
             st.metric("Calculated Lot Size", f"{round(lot_size, 2)}")
             st.write(f"📏 Dist: {round(pips_dist, 1)} pips | 💵 Total Risk: ${round(current_risk_usd, 2)}")
+            
+            if st.button("LOG TRADE TO JOURNAL", use_container_width=True):
+                st.success(f"Trade Logged: {symbol} {trade_dir} at {entry_val}")
