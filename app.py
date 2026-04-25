@@ -76,26 +76,34 @@ if not trade_limit_ok or st.session_state.daily_loss_total >= max_daily_risk_lim
     st.error("🛑 TRADING LOCKED: Daily limits reached.")
     st.stop()
 
-# ---------------- PHASE 1: 4H BIAS & LIQUIDITY ---------------- #
+# ---------------- PHASE 1: 4H BIAS & SWING POINTS ---------------- #
 st.markdown("---")
 st.header("PHASE 1: 4H DIRECTIONAL BIAS")
 col_bias1, col_bias2 = st.columns(2)
 
 with col_bias1:
-    htf_bias = st.radio("4H Market Structure", ["Bullish (HH/HL) ⬆️", "Bearish (LH/LL) ⬇️", "Ranging/Unclear ↔️"])
-    bias_confirmed = st.checkbox("4H Trend Confirmed?")
+    st.subheader("4H Market Structure")
+    htf_bias = st.radio("Current Trend", ["Bullish (HH/HL) ⬆️", "Bearish (LH/LL) ⬇️", "Ranging/Unclear ↔️"])
+    
+    # Swing Point Verification
+    c_swing_h = st.checkbox("4H Swing High Identified")
+    c_swing_l = st.checkbox("4H Swing Low Identified")
+    bias_confirmed = st.checkbox("4H Trend Confirmed (BOS/mBOS)")
+    
+    # THE TICK: Visual confirmation
+    if htf_bias != "Ranging/Unclear ↔️" and c_swing_h and c_swing_l and bias_confirmed:
+        st.success("✅ 4H TREND CONFIRMED")
+        trend_tick = True
+    else:
+        st.warning("⏳ Awaiting Full 4H Confirmation")
+        trend_tick = False
 
 with col_bias2:
-    st.write("**Draw on Liquidity (4H/Daily):**")
-    liq_sweep = st.toggle("Liquidity Taken (PDH/PDL or Equal Highs/Lows)")
-    premium_discount = st.radio("Price Location", ["Discount (Buying Only)", "Premium (Selling Only)", "Equilibrium (Wait)"])
+    st.subheader("Liquidity & Value")
+    liq_sweep = st.toggle("Liquidity Taken (PDH/PDL or Equal Levels)")
+    premium_discount = st.radio("Price Location", ["Discount (Buy Zone)", "Premium (Sell Zone)", "Equilibrium (No Trade)"])
 
-bias_ok = htf_bias != "Ranging/Unclear ↔️" and bias_confirmed and liq_sweep
-
-if bias_ok:
-    st.success("🎯 4H BIAS ALIGNED: Move to 1H POI Selection")
-else:
-    st.warning("⚠️ WAITING FOR 4H ALIGNMENT & LIQUIDITY SWEEP")
+bias_ok = trend_tick and liq_sweep
 
 # ---------------- PHASE 2: 1H POI TRADING PLAN ---------------- #
 st.markdown("---")
@@ -128,8 +136,8 @@ if POI_DB:
 # ---------------- PHASE 3: LTF TRIGGER (1M/5M) ---------------- #
 st.markdown("---")
 st.header("PHASE 3: LTF ENTRY TRIGGER")
-c_mss = st.checkbox("MSS / CHoCH (1M/5M Trend Shift)")
-c_fvg = st.toggle("FVG/OB Present for Entry")
+c_mss = st.checkbox("MSS / CHoCH (1M/5M Shift)")
+c_fvg = st.toggle("FVG/OB Refinement Present")
 
 trigger_ok = c_mss and c_fvg and inside_zone and bias_ok
 
@@ -147,6 +155,7 @@ with calc_c2:
         pips = abs(entry - sl) * 10
         lot_size = current_risk_usd / (pips * 10) if pips > 0 else 0
         st.metric("Lot Size", round(lot_size, 2))
+        
         if trigger_ok and news_ok:
             st.success("🚀 EXECUTE TRADE")
         else:
@@ -155,5 +164,7 @@ with calc_c2:
 with calc_c3:
     if entry > 0 and sl > 0:
         diff = abs(entry - sl)
-        st.write(f"TP1 (1.5R): **{round(entry + (diff * 1.5 if entry > sl else -diff * 1.5), 2)}**")
-        st.write(f"TP2 (3.0R): **{round(entry + (diff * 3.0 if entry > sl else -diff * 3.0), 2)}**")
+        # Dynamic TP based on direction
+        is_buy = entry > sl
+        st.write(f"TP1 (1.5R): **{round(entry + (diff * 1.5 if is_buy else -diff * 1.5), 2)}**")
+        st.write(f"TP2 (3.0R): **{round(entry + (diff * 3.0 if is_buy else -diff * 3.0), 2)}**")
