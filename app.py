@@ -33,12 +33,12 @@ with st.sidebar:
     if not news_ok:
         st.warning("⚠️ System Locked: Confirm news is clear.")
 
+    if "trade_count" not in st.session_state: st.session_state.trade_count = 0
+
     st.header("📊 Daily Journal")
-    loss_disabled = not news_ok or st.session_state.trade_count >= 3 if "trade_count" in st.session_state else True
+    loss_disabled = not news_ok or st.session_state.trade_count >= 3
     
     col_loss, col_win = st.columns(2)
-    if "trade_count" not in st.session_state: st.session_state.trade_count = 0
-    
     with col_loss:
         if st.button("❌ LOSS", disabled=loss_disabled, use_container_width=True):
             st.session_state.balance -= current_risk_usd
@@ -55,60 +55,66 @@ st.title(f"🏹 BlackArrowFX: {symbol} Precision Engine")
 st.caption(f"Asset: {symbol} | Mode: {asset_type} | Server Time: {dt_string}")
 st.markdown("---")
 
-# ---------------- TRIPLE TIMEFRAME ANALYSIS ---------------- #
-c4h, c1h, cltf = st.columns(3)
+# ---------------- QUAD TIMEFRAME ANALYSIS ---------------- #
+c4h, c1h, c30m, c15m = st.columns(4)
 
-# 4H BIAS
-c4h.subheader(f"⏳ 4H BIAS")
-htf_bias = c4h.radio("4H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", disabled=not news_ok)
-s4_h = c4h.number_input("4H Swing High", value=0.0, format="%.2f", key="s4h", disabled=not news_ok)
-s4_l = c4h.number_input("4H Swing Low", value=0.0, format="%.2f", key="s4l", disabled=not news_ok)
+# --- 4H BIAS ---
+c4h.subheader("⏳ 4H BIAS")
+htf_bias = c4h.radio("Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", disabled=not news_ok)
+s4_h = c4h.number_input("Swing High", value=0.0, format="%.2f", key="s4h", disabled=not news_ok)
+s4_l = c4h.number_input("Swing Low", value=0.0, format="%.2f", key="s4l", disabled=not news_ok)
 bias_4h_ok = c4h.checkbox("4H Confirmed", key="4h_c", disabled=not (s4_h > 0 and s4_l > 0) or not news_ok)
 
-# 1H STRUCTURE
-c1h.subheader(f"⏱️ 1H STRUCTURE")
-itf_trend = c1h.radio("1H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", disabled=not bias_4h_ok)
-s1_h = c1h.number_input("1H Swing High", value=0.0, format="%.2f", key="s1h", disabled=not bias_4h_ok)
-s1_l = c1h.number_input("1H Swing Low", value=0.0, format="%.2f", key="s1l", disabled=not bias_4h_ok)
+# --- 1H STRUCTURE ---
+c1h.subheader("⏱️ 1H STRUCTURE")
+itf_trend = c1h.radio("Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", disabled=not bias_4h_ok)
+s1_h = c1h.number_input("Swing High", value=0.0, format="%.2f", key="s1h", disabled=not bias_4h_ok)
+s1_l = c1h.number_input("Swing Low", value=0.0, format="%.2f", key="s1l", disabled=not bias_4h_ok)
 bias_1h_ok = c1h.checkbox("1H Confirmed", key="1h_c", disabled=not (s1_h > 0 and s1_l > 0) or not bias_4h_ok)
 
-# NEW: SELECTABLE LTF SHIFT (15M / 30M)
-cltf.subheader(f"⚡ LTF SHIFT")
-ltf_choice = cltf.selectbox("Select Timeframe", ["15M", "30M"], disabled=not bias_1h_ok)
-ltf_trend = cltf.radio(f"{ltf_choice} Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="ltf_t", disabled=not bias_1h_ok)
-s_ltf_h = cltf.number_input(f"{ltf_choice} Swing High", value=0.0, format="%.2f", key="sltfh", disabled=not bias_1h_ok)
-s_ltf_l = cltf.number_input(f"{ltf_choice} Swing Low", value=0.0, format="%.2f", key="sltfl", disabled=not bias_1h_ok)
-bias_ltf_ok = cltf.checkbox(f"{ltf_choice} Confirmed", key="ltf_c", disabled=not (s_ltf_h > 0 and s_ltf_l > 0) or not bias_1h_ok)
+# --- 30M SHIFT ---
+c30m.subheader("⚡ 30M SHIFT")
+t30_trend = c30m.radio("Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="30m_t", disabled=not bias_1h_ok)
+s30_h = c30m.number_input("Swing High", value=0.0, format="%.2f", key="s30h", disabled=not bias_1h_ok)
+s30_l = c30m.number_input("Swing Low", value=0.0, format="%.2f", key="s30l", disabled=not bias_1h_ok)
+bias_30m_ok = c30m.checkbox("30M Confirmed", key="30m_c", disabled=not (s30_h > 0 and s30_l > 0) or not bias_1h_ok)
 
-# ---------------- SYSTEM INTELLIGENCE: ALIGNMENT LOGIC ---------------- #
+# --- 15M ENTRY ---
+c15m.subheader("🎯 15M ENTRY")
+t15_trend = c15m.radio("Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="15m_t", disabled=not bias_30m_ok)
+s15_h = c15m.number_input("Swing High", value=0.0, format="%.2f", key="s15h", disabled=not bias_30m_ok)
+s15_l = c15m.number_input("Swing Low", value=0.0, format="%.2f", key="s15l", disabled=not bias_30m_ok)
+bias_15m_ok = c15m.checkbox("15M Confirmed", key="15m_c", disabled=not (s15_h > 0 and s15_l > 0) or not bias_30m_ok)
+
+# ---------------- MARKET INTELLIGENCE ---------------- #
 st.markdown("---")
 st.subheader("🧠 Market Intelligence")
 
-if bias_ltf_ok:
+if bias_15m_ok:
     if htf_bias == "Bullish ⬆️":
         if itf_trend == "Bearish ⬇️":
-            st.info(f"📉 COMMENT: 4H BULLISH PULLBACK. {ltf_choice} is bearish as price hunts for a 4H Higher Low. Look for Demand POIs.")
-        elif itf_trend == "Bullish ⬆️" and ltf_trend == "Bullish ⬆️":
-            st.success("🚀 COMMENT: FULL BULLISH ALIGNMENT. All cylinders firing for a trend continuation.")
+            st.info("📉 COMMENT: 4H BULLISH PULLBACK. Lower timeframes are bearish as price hunts for a 4H Higher Low.")
+        elif itf_trend == "Bullish ⬆️" and t15_trend == "Bullish ⬆️":
+            st.success("🚀 COMMENT: QUAD-TIMEFRAME BULLISH ALIGNMENT. High probability continuation.")
     elif htf_bias == "Bearish ⬇️":
         if itf_trend == "Bullish ⬆️":
-            st.info(f"📈 COMMENT: 4H BEARISH RETRACEMENT. {ltf_choice} is bullish as price hunts for a 4H Lower High. Look for Supply POIs.")
-        elif itf_trend == "Bearish ⬇️" and ltf_trend == "Bearish ⬇️":
-            st.success("🔥 COMMENT: FULL BEARISH ALIGNMENT. Order flow is perfectly synchronized for shorts.")
+            st.info("📈 COMMENT: 4H BEARISH RETRACEMENT. Lower timeframes are bullish as price hunts for a 4H Lower High.")
+        elif itf_trend == "Bearish ⬇️" and t15_trend == "Bearish ⬇️":
+            st.success("🔥 COMMENT: QUAD-TIMEFRAME BEARISH ALIGNMENT. Perfect synchronization for shorts.")
 else:
-    st.write("⏳ Waiting for timeframe confirmation to provide market intelligence...")
+    st.write("⏳ Follow the confirmation sequence (4H -> 1H -> 30M -> 15M) to unlock intelligence.")
 
 # ---------------- PHASE 2 & 3 ---------------- #
 st.markdown("---")
 col_poi, col_exec = st.columns([1, 2])
 
 with col_poi:
-    st.header(f"📋 PHASE 2: POI")
-    poi_type = st.selectbox("Where am I trading?", ["Select POI...", "Swing High", "Swing Low", "Supply Zone", "Demand Zone", "Order Block", "FVG / Imbalance"], disabled=not bias_ltf_ok)
-    zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f", disabled=not bias_ltf_ok)
+    st.header("📋 PHASE 2: POI")
+    poi_type = st.selectbox("Where am I trading?", ["Select POI...", "Swing High", "Swing Low", "Supply Zone", "Demand Zone", "Order Block", "FVG / Imbalance"], disabled=not bias_15m_ok)
+    zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f", disabled=not bias_15m_ok)
 
 with col_exec:
-    st.header(f"🚀 PHASE 3: EXECUTE")
+    st.header("🚀 PHASE 3: EXECUTE")
     pip_factor = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
         
     calculated_sl = 0.0
@@ -122,5 +128,5 @@ with col_exec:
     if entry > 0 and sl > 0:
         pips_diff = abs(entry - sl) / pip_factor
         lot = (current_risk_usd / pips_diff) / 10 if pips_diff > 0 else 0
-        st.metric(f"Calculated Lot Size", f"{round(lot, 2)}")
+        st.metric("Calculated Lot Size", f"{round(lot, 2)}")
         st.caption(f"Risk Distance: {round(pips_diff, 1)} pips")
