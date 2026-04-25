@@ -31,20 +31,17 @@ with st.sidebar:
     else:
         current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
 
-    # ---------------- 2. NEWS FILTER (Defaulted to OFF) ---------------- #
+    # ---------------- 2. NEWS FILTER (Default OFF = Locked) ---------------- #
     st.markdown("---")
     st.header("🌍 News Filter")
     
-    # Toggle is physically OFF (False) by default
-    high_impact_news = st.toggle("High Impact News Active", value=False) 
-    
-    # Logic: System is OK only if high_impact_news is False
-    news_ok = not high_impact_news
+    # Defaults to False (OFF). System stays locked until user toggles this to True (ON).
+    news_ok = st.toggle("No High Impact News Active", value=False) 
     
     if not news_ok:
-        st.error("🚨 SYSTEM LOCKED: News impact detected.")
+        st.error("🚨 SYSTEM LOCKED: Confirm no news to proceed.")
     else:
-        st.success("✅ System Unlocked")
+        st.success("✅ News Cleared: System Unlocked")
 
     # ---------------- 3. THE JOURNAL COMPONENT ---------------- #
     st.markdown("---")
