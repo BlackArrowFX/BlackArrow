@@ -108,85 +108,76 @@ phase1_ready = bias_4h_ok and htf_bias != "Ranging"
 phase2_ready = bias_1h_ok and itf_trend != "Ranging"
 phase3_ready = bias_5m_ok and ltf_trend != "Ranging"
 
-# ---------------- PHASE 2: POI PLAN (EXPANDED) ---------------- #
+# ---------------- PHASE 2: POI PLAN ---------------- #
 st.markdown("---")
 col_poi, col_exec = st.columns([1, 2])
 
 with col_poi:
     st.header(f"📋 PHASE 2: {symbol} POI")
     
-    # ADDED SWING HIGH / SWING LOW TO SELECTBOX
     poi_type = st.selectbox("Where am I trading?", [
         "Select POI...", 
         "Supply Zone", 
         "Demand Zone", 
         "Order Block", 
         "FVG / Imbalance",
-        "HTF Swing High (Liquidity)", 
-        "HTF Swing Low (Liquidity)",
-        "Equal Highs/Lows (BSL/SSL)"
+        "HTF Swing High", 
+        "HTF Swing Low",
+        "Equal Highs/Lows"
     ])
     
-    # Requirement: Liquidity Sweep Check
-    liq_sweep = st.toggle("Liquidity Swept? (Grab & Reverse)")
+    # User inputs the exact price of the structure/level
+    zone_price = st.number_input("Entry Zone Price (Level)", value=0.0, format="%.2f")
+    st.caption("Entry will be calculated automatically (+/- 15 pips).")
 
-    raw_text = st.text_area(f"Paste 1H {symbol} POI Zones", height=100, placeholder="Example: 1H Demand 2340.50 - 2345.00")
-    POI_DB = {}
-    if raw_text:
-        lines = raw_text.split("\n")
-        for line in lines:
-            line = line.strip().replace("–", "-")
-            match = re.search(r"(\d{1,6}\.?\d*)\s*-\s*(\d{1,6}\.?\d*)", line)
-            if match:
-                low, high = float(match.group(1)), float(match.group(2))
-                name = line.split("$")[0].strip() or f"Zone {len(POI_DB)+1}"
-                POI_DB[name] = {"low": low, "high": high}
-
-    inside_zone = False
-    if POI_DB:
-        selected_poi = st.selectbox("Active Zone", list(POI_DB.keys()))
-        curr_price = st.number_input(f"Current {symbol} Price", value=0.0, format="%.2f")
-        target = POI_DB[selected_poi]
-        if target["low"] <= curr_price <= target["high"]:
-            st.success(f"✅ PRICE IN {symbol} POI")
-            inside_zone = True
-        else:
-            st.error(f"❌ PRICE OUTSIDE {symbol} POI")
-    
-    poi_confirmed = poi_type != "Select POI..." and inside_zone
-
-# ---------------- PHASE 3: EXECUTION ---------------- #
+# ---------------- PHASE 3: EXECUTION (+15 PIPS) ---------------- #
 with col_exec:
     st.header(f"🚀 PHASE 3: {symbol} EXECUTE")
+    
+    # 1. Determine Pip Factor
+    if any(x in symbol for x in ["XAU", "GOLD", "JPY"]):
+        pip_factor = 0.01
+    elif any(x in symbol for x in ["US30", "NAS100", "GER40", "BTC", "ETH"]):
+        pip_factor = 1.0
+    else:
+        pip_factor = 0.0001
+        
+    # 2. Logic for Auto-Entry (+15 Pips)
+    # If it's a High/Supply, we want to go Short (Zone - 15 pips)
+    # If it's a Low/Demand, we want to go Long (Zone + 15 pips)
+    calculated_entry = 0.0
+    if zone_price > 0:
+        is_short_poi = any(x in poi_type for x in ["High", "Supply"])
+        if is_short_poi:
+            calculated_entry = zone_price - (15 * pip_factor)
+        else:
+            calculated_entry = zone_price + (15 * pip_factor)
+
     calc_c1, calc_c2 = st.columns(2)
     with calc_c1:
-        entry = st.number_input("Entry Price", value=0.0, format="%.2f")
+        entry = st.number_input("Entry Price (Auto)", value=calculated_entry, format="%.2f")
         sl = st.number_input("Stop Loss", value=0.0, format="%.2f")
     
     with calc_c2:
         if entry > 0 and sl > 0:
             raw_diff = abs(entry - sl)
-            if any(x in symbol for x in ["XAU", "GOLD", "JPY"]):
-                pips = raw_diff * 100 
-            elif any(x in symbol for x in ["US30", "NAS100", "GER40", "BTC", "ETH"]):
-                pips = raw_diff
-            else:
-                pips = raw_diff * 10000 
+            pips = raw_diff / pip_factor
 
             lot = (current_risk_usd / pips) / 10 if pips > 0 else 0
             st.metric(f"{symbol} Lot Size", f"{round(lot, 2)} Lots")
+            st.caption(f"Risk: {round(pips, 1)} pips")
 
     # CONFLUENCE CHECKLIST
     st.markdown("---")
     with st.expander("🔍 Confluence Checklist", expanded=True):
         c1 = st.checkbox(f"{symbol} Trends Aligned", value=phase1_ready and phase2_ready and phase3_ready, disabled=True)
-        c2 = st.checkbox(f"{symbol} POI Confirmed", value=poi_confirmed, disabled=True)
-        c3 = st.checkbox("Liquidity Grab Confirmed", value=liq_sweep)
+        c2 = st.checkbox(f"{symbol} POI & Zone Set", value=(poi_type != "Select POI..." and zone_price > 0), disabled=True)
+        c3 = st.checkbox("News Cleared", value=news_ok, disabled=True)
         
-        if c1 and c2 and c3 and news_ok:
+        if c1 and c2 and c3:
             st.success(f"🔥 {symbol} HIGH PROBABILITY SETUP")
         else:
-            st.warning(f"⚠️ {symbol} CHECK ALIGNMENT / LIQUIDITY")
+            st.warning(f"⚠️ {symbol} CHECK ALIGNMENT")
 
     if entry > 0 and sl > 0:
         is_buy = entry > sl
