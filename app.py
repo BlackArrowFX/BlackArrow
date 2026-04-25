@@ -32,7 +32,11 @@ with st.sidebar:
     
     st.header("🌍 News Filter")
     st.markdown(f"[Check Forex Factory for {symbol} 📅](https://www.forexfactory.com/)")
+    
+    # MASTER SWITCH
     news_ok = st.toggle("No High Impact News")
+    if not news_ok:
+        st.warning("⚠️ System Locked: Clear news to enable actions.")
 
     if "trade_count" not in st.session_state:
         st.session_state.trade_count = 0
@@ -42,16 +46,17 @@ with st.sidebar:
     st.header("📊 Daily Journal")
     st.write(f"Trades Taken: **{st.session_state.trade_count} / 3**")
     
-    loss_disabled = st.session_state.trade_count >= 3 or st.session_state.daily_loss_total >= max_daily_risk_limit
+    # AMENDED: Added 'not news_ok' to the disabled logic
+    loss_disabled = not news_ok or st.session_state.trade_count >= 3 or st.session_state.daily_loss_total >= max_daily_risk_limit
     if st.button("❌ RECORD LOSS", disabled=loss_disabled, use_container_width=True):
         st.session_state.balance -= current_risk_usd
         st.session_state.daily_loss_total += current_risk_usd
         st.session_state.trade_count += 1
         st.rerun()
 
-    win_disabled = st.session_state.trade_count >= 3
+    win_disabled = not news_ok or st.session_state.trade_count >= 3
     with st.expander("✅ RECORD WIN", expanded=not win_disabled):
-        manual_profit = st.number_input("Profit Made ($)", min_value=0.0, value=current_risk_usd * 2)
+        manual_profit = st.number_input("Profit Made ($)", min_value=0.0, value=current_risk_usd * 2, disabled=not news_ok)
         if st.button("Add to Balance", disabled=win_disabled):
             st.session_state.balance += manual_profit
             st.session_state.trade_count += 1
@@ -82,27 +87,28 @@ if not trade_limit_ok or st.session_state.daily_loss_total >= max_daily_risk_lim
 
 # ---------------- TRIPLE TIMEFRAME ANALYSIS ---------------- #
 st.markdown("---")
+# Added disabled=not news_ok to all analysis inputs
 c4h, c1h, c5m = st.columns(3)
 
 c4h.subheader(f"⏳ 4H BIAS")
 c1h.subheader(f"⏱️ 1H STRUCT")
 c5m.subheader(f"⚡ 5M SHIFT")
 
-htf_bias = c4h.radio("4H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", label_visibility="collapsed")
-itf_trend = c1h.radio("1H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", label_visibility="collapsed")
-ltf_trend = c5m.radio("5M Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="5m_t", label_visibility="collapsed")
+htf_bias = c4h.radio("4H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", label_visibility="collapsed", disabled=not news_ok)
+itf_trend = c1h.radio("1H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", label_visibility="collapsed", disabled=not news_ok)
+ltf_trend = c5m.radio("5M Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="5m_t", label_visibility="collapsed", disabled=not news_ok)
 
-s4_h = c4h.number_input("4H Swing High", value=0.0, format="%.2f", key="s4h")
-s1_h = c1h.number_input("1H Swing High", value=0.0, format="%.2f", key="s1h")
-s5_h = c5m.number_input("5M Swing High", value=0.0, format="%.2f", key="s5h")
+s4_h = c4h.number_input("4H Swing High", value=0.0, format="%.2f", key="s4h", disabled=not news_ok)
+s1_h = c1h.number_input("1H Swing High", value=0.0, format="%.2f", key="s1h", disabled=not news_ok)
+s5_h = c5m.number_input("5M Swing High", value=0.0, format="%.2f", key="s5h", disabled=not news_ok)
 
-s4_l = c4h.number_input("4H Swing Low", value=0.0, format="%.2f", key="s4l")
-s1_l = c1h.number_input("1H Swing Low", value=0.0, format="%.2f", key="s1l")
-s5_l = c5m.number_input("5M Swing Low", value=0.0, format="%.2f", key="s5l")
+s4_l = c4h.number_input("4H Swing Low", value=0.0, format="%.2f", key="s4l", disabled=not news_ok)
+s1_l = c1h.number_input("1H Swing Low", value=0.0, format="%.2f", key="s1l", disabled=not news_ok)
+s5_l = c5m.number_input("5M Swing Low", value=0.0, format="%.2f", key="s5l", disabled=not news_ok)
 
-bias_4h_ok = c4h.checkbox("4H Confirmed", disabled=not (s4_h > 0 and s4_l > 0))
-bias_1h_ok = c1h.checkbox("1H Confirmed", disabled=not (s1_h > 0 and s1_l > 0))
-bias_5m_ok = c5m.checkbox("5M Confirmed", disabled=not (s5_h > 0 and s5_l > 0))
+bias_4h_ok = c4h.checkbox("4H Confirmed", disabled=not (s4_h > 0 and s4_l > 0) or not news_ok)
+bias_1h_ok = c1h.checkbox("1H Confirmed", disabled=not (s1_h > 0 and s1_l > 0) or not news_ok)
+bias_5m_ok = c5m.checkbox("5M Confirmed", disabled=not (s5_h > 0 and s5_l > 0) or not news_ok)
 
 phase1_ready = bias_4h_ok and htf_bias != "Ranging"
 phase2_ready = bias_1h_ok and itf_trend != "Ranging"
@@ -124,17 +130,14 @@ with col_poi:
         "HTF Swing High", 
         "HTF Swing Low",
         "Equal Highs/Lows"
-    ])
+    ], disabled=not news_ok)
     
-    # User inputs the exact price of the structure/level
-    zone_price = st.number_input("Entry Zone Price (Level)", value=0.0, format="%.2f")
-    st.caption("Entry will be calculated automatically (+/- 15 pips).")
+    zone_price = st.number_input("Entry Zone Price (Level)", value=0.0, format="%.2f", disabled=not news_ok)
 
 # ---------------- PHASE 3: EXECUTION (+15 PIPS) ---------------- #
 with col_exec:
     st.header(f"🚀 PHASE 3: {symbol} EXECUTE")
     
-    # 1. Determine Pip Factor
     if any(x in symbol for x in ["XAU", "GOLD", "JPY"]):
         pip_factor = 0.01
     elif any(x in symbol for x in ["US30", "NAS100", "GER40", "BTC", "ETH"]):
@@ -142,9 +145,6 @@ with col_exec:
     else:
         pip_factor = 0.0001
         
-    # 2. Logic for Auto-Entry (+15 Pips)
-    # If it's a High/Supply, we want to go Short (Zone - 15 pips)
-    # If it's a Low/Demand, we want to go Long (Zone + 15 pips)
     calculated_entry = 0.0
     if zone_price > 0:
         is_short_poi = any(x in poi_type for x in ["High", "Supply"])
@@ -155,14 +155,14 @@ with col_exec:
 
     calc_c1, calc_c2 = st.columns(2)
     with calc_c1:
-        entry = st.number_input("Entry Price (Auto)", value=calculated_entry, format="%.2f")
-        sl = st.number_input("Stop Loss", value=0.0, format="%.2f")
+        # AMENDED: Added disabled=not news_ok
+        entry = st.number_input("Entry Price (Auto)", value=calculated_entry, format="%.2f", disabled=not news_ok)
+        sl = st.number_input("Stop Loss", value=0.0, format="%.2f", disabled=not news_ok)
     
     with calc_c2:
         if entry > 0 and sl > 0:
             raw_diff = abs(entry - sl)
             pips = raw_diff / pip_factor
-
             lot = (current_risk_usd / pips) / 10 if pips > 0 else 0
             st.metric(f"{symbol} Lot Size", f"{round(lot, 2)} Lots")
             st.caption(f"Risk: {round(pips, 1)} pips")
