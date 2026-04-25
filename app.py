@@ -76,49 +76,49 @@ if not trade_limit_ok or st.session_state.daily_loss_total >= max_daily_risk_lim
     st.error("🛑 TRADING LOCKED: Limits reached.")
     st.stop()
 
-# ---------------- TRIPLE TIMEFRAME ANALYSIS (4H | 1H | 5M) ---------------- #
+# ---------------- TRIPLE TIMEFRAME ANALYSIS (ALIGNED) ---------------- #
 st.markdown("---")
-col_4h, col_1h, col_5m = st.columns(3)
+# Defining columns for the Triple Timeframe View
+c4h, c1h, c5m = st.columns(3)
 
-# --- 4H COLUMN ---
-with col_4h:
-    st.subheader("⏳ PHASE 1: 4H BIAS")
-    htf_bias = st.radio("Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t")
-    s4_h = st.number_input("4H Swing High", value=0.0, format="%.2f", step=0.0, key="s4h")
-    s4_l = st.number_input("4H Swing Low", value=0.0, format="%.2f", step=0.0, key="s4l")
-    
-    u4_ready = s4_h > 0 and s4_l > 0
-    bias_4h_ok = st.checkbox("4H Confirmed", disabled=not u4_ready, key="c4h")
-    liq_4h = st.toggle("4H Liquidity Taken", key="l4h")
-    
-    phase1_ready = bias_4h_ok and htf_bias != "Ranging" and liq_4h
+# ROW 1: HEADERS
+c4h.subheader("⏳ 4H BIAS")
+c1h.subheader("⏱️ 1H STRUCTURE")
+c5m.subheader("⚡ 5M SHIFT")
 
-# --- 1H COLUMN ---
-with col_1h:
-    st.subheader("⏱️ PHASE 2: 1H STRUCTURE")
-    itf_trend = st.radio("Structure", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t")
-    s1_h = st.number_input("1H Swing High", value=0.0, format="%.2f", step=0.0, key="s1h")
-    s1_l = st.number_input("1H Swing Low", value=0.0, format="%.2f", step=0.0, key="s1l")
-    
-    u1_ready = s1_h > 0 and s1_l > 0
-    bias_1h_ok = st.checkbox("1H Confirmed", disabled=not u1_ready, key="c1h")
-    p_d = st.radio("Value Zone", ["Discount", "Premium", "Equilibrium"], key="pd")
-    
-    phase2_ready = bias_1h_ok and itf_trend != "Ranging"
+# ROW 2: TREND SELECTION
+htf_bias = c4h.radio("4H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", label_visibility="collapsed")
+itf_trend = c1h.radio("1H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", label_visibility="collapsed")
+ltf_trend = c5m.radio("5M Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="5m_t", label_visibility="collapsed")
 
-# --- 5M COLUMN ---
-with col_5m:
-    st.subheader("⚡ PHASE 3: 5M TRIGGER")
-    ltf_trend = st.radio("LTF Shift", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="5m_t")
-    s5_h = st.number_input("5M Swing High", value=0.0, format="%.2f", step=0.0, key="s5h")
-    s5_l = st.number_input("5M Swing Low", value=0.0, format="%.2f", step=0.0, key="s5l")
-    
-    u5_ready = s5_h > 0 and s5_l > 0
-    bias_5m_ok = st.checkbox("5M Confirmed", disabled=not u5_ready, key="c5h")
+st.markdown(" ") # Spacer
+
+# ROW 3: SWING HIGHS
+s4_h = c4h.number_input("4H Swing High", value=0.0, format="%.2f", step=0.0, key="s4h")
+s1_h = c1h.number_input("1H Swing High", value=0.0, format="%.2f", step=0.0, key="s1h")
+s5_h = c5m.number_input("5M Swing High", value=0.0, format="%.2f", step=0.0, key="s5h")
+
+# ROW 4: SWING LOWS
+s4_l = c4h.number_input("4H Swing Low", value=0.0, format="%.2f", step=0.0, key="s4l")
+s1_l = c1h.number_input("1H Swing Low", value=0.0, format="%.2f", step=0.0, key="s1l")
+s5_l = c5m.number_input("5M Swing Low", value=0.0, format="%.2f", step=0.0, key="s5l")
+
+# ROW 5: CONFIRMATION CHECKBOXES
+bias_4h_ok = c4h.checkbox("4H Confirmed", disabled=not (s4_h > 0 and s4_l > 0), key="c4h")
+bias_1h_ok = c1h.checkbox("1H Confirmed", disabled=not (s1_h > 0 and s1_l > 0), key="c1h")
+bias_5m_ok = c5m.checkbox("5M Confirmed", disabled=not (s5_h > 0 and s5_l > 0), key="c5h")
+
+# ROW 6: SPECIFIC CONFLUENCES
+with c4h: liq_4h = st.toggle("4H Liquidity Taken", key="l4h")
+with c1h: p_d = st.radio("Value Zone", ["Discount", "Premium", "Equilibrium"], key="pd")
+with c5m: 
     c_mss = st.checkbox("MSS / CHoCH", key="mss")
     c_fvg = st.toggle("FVG/OB Entry", key="fvg")
-    
-    phase3_ready = bias_5m_ok and c_mss and c_fvg
+
+# LOGIC GATES
+phase1_ready = bias_4h_ok and htf_bias != "Ranging" and liq_4h
+phase2_ready = bias_1h_ok and itf_trend != "Ranging"
+phase3_ready = bias_5m_ok and c_mss and c_fvg
 
 # ---------------- POI & EXECUTION ---------------- #
 st.markdown("---")
@@ -126,7 +126,7 @@ col_poi, col_exec = st.columns([1, 2])
 
 with col_poi:
     st.header("📋 POI PLAN")
-    raw_text = st.text_area("Paste 1H POI Zones", height=100, placeholder="Example: 1H Order Block $2340 - $2345")
+    raw_text = st.text_area("Paste 1H POI Zones", height=100, placeholder="Example: 1H Demand $2340 - $2345")
     POI_DB = {}
     if raw_text:
         lines = raw_text.split("\n")
