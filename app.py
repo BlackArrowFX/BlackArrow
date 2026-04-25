@@ -23,7 +23,9 @@ with st.sidebar:
     st.header("💰 Risk Engine")
 
     balance = st.number_input("Account Balance ($)", value=2146.11)
-    risk_pct = st.slider("Risk per Trade (%)", 0.25, 1.0, 1.0)
+    
+    # UPDATED: Risk per trade now defaults to 5.0%
+    risk_pct = st.slider("Risk per Trade (%)", 0.25, 10.0, 5.0)
 
     risk_usd = balance * (risk_pct / 100)
     st.info(f"Risk per Trade: ${round(risk_usd,2)}")
@@ -32,6 +34,8 @@ with st.sidebar:
     session = st.selectbox("Session", ["Asia", "London", "New York"])
 
     st.header("🌍 News Filter")
+    # UPDATED: Added Forex Factory link for quick access
+    st.markdown("[Open Forex Factory 📅](https://www.forexfactory.com/)")
     news_ok = st.toggle("No High Impact News")
 
     st.markdown("---")
@@ -255,12 +259,14 @@ st.header("POSITION CALCULATOR")
 c1, c2, c3 = st.columns(3)
 
 with c1:
-    entry = st.number_input("Entry Price", value=0.0)
-    sl = st.number_input("Stop Loss", value=0.0)
+    entry = st.number_input("Entry Price", key="entry_price", value=0.0)
+    sl = st.number_input("Stop Loss", key="sl_price", value=0.0)
 
 with c2:
     if entry > 0 and sl > 0:
         pip_dist = abs(entry - sl) * 10
+        # Formula: Lot = Risk_USD / (Pip_Distance * Pip_Value)
+        # Note: Pip_Value depends on your broker's contract size
         lot = risk_usd / (pip_dist * 10) if pip_dist > 0 else 0
 
         st.metric("Lot Size", round(lot,2))
@@ -271,5 +277,5 @@ with c3:
         tp1 = entry + ((entry - sl) * 1.5)
         tp2 = entry + ((entry - sl) * 3)
 
-        st.write(f"TP1: {round(tp1,2)}")
-        st.write(f"TP2: {round(tp2,2)}")
+        st.write(f"TP1 (1.5R): {round(tp1,2)}")
+        st.write(f"TP2 (3R): {round(tp2,2)}")
