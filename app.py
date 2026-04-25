@@ -43,15 +43,17 @@ with st.sidebar:
     st.header("📊 Daily Journal")
     st.write(f"Trades Taken: **{st.session_state.trade_count} / 3**")
     
-    if st.button("❌ RECORD LOSS", disabled=(st.session_state.trade_count >= 3), use_container_width=True):
+    loss_disabled = st.session_state.trade_count >= 3 or st.session_state.daily_loss_total >= max_daily_risk_limit
+    if st.button("❌ RECORD LOSS", disabled=loss_disabled, use_container_width=True):
         st.session_state.balance -= current_risk_usd
         st.session_state.daily_loss_total += current_risk_usd
         st.session_state.trade_count += 1
         st.rerun()
 
-    with st.expander("✅ RECORD WIN"):
+    win_disabled = st.session_state.trade_count >= 3
+    with st.expander("✅ RECORD WIN", expanded=not win_disabled):
         manual_profit = st.number_input("Profit Made ($)", min_value=0.0, value=current_risk_usd * 2, step=0.0)
-        if st.button("Add to Balance"):
+        if st.button("Add to Balance", disabled=win_disabled):
             st.session_state.balance += manual_profit
             st.session_state.trade_count += 1
             st.rerun()
@@ -70,41 +72,45 @@ with col_p0_1:
 with col_p0_2:
     st.checkbox("News Cleared", value=news_ok, disabled=True)
 
-if not trade_limit_ok:
-    st.error("🛑 TRADING LOCKED: Daily limit reached.")
+if not trade_limit_ok or st.session_state.daily_loss_total >= max_daily_risk_limit:
+    st.error("🛑 TRADING LOCKED: Limits reached.")
     st.stop()
 
-# ---------------- TRIPLE TIMEFRAME ANALYSIS ---------------- #
+# ---------------- TRIPLE TIMEFRAME ANALYSIS (ALIGNED) ---------------- #
 st.markdown("---")
 c4h, c1h, c5m = st.columns(3)
 
-def render_tf_column(col, tf_label, key_prefix):
-    with col:
-        st.subheader(f"{tf_label}")
-        bias = st.radio(f"{tf_label} Bias", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key=f"{key_prefix}_bias", label_visibility="collapsed")
-        
-        confirmed = st.checkbox(f"{tf_label} Trend Confirmed", key=f"{key_prefix}_conf")
-        
-        tf_ready = False
-        if confirmed and bias != "Ranging":
-            # Dynamic Label Logic
-            if bias == "Bullish ⬆️":
-                opt1, opt2 = "BOS (Swing High)", "MSS (Swing Low)"
-            else:
-                opt1, opt2 = "BOS (Swing Low)", "MSS (Swing High)"
-                
-            struct_type = st.selectbox("Select Structure Type", [opt1, opt2], key=f"{key_prefix}_type")
-            price_val = st.number_input(f"Enter {struct_type} Price", value=0.0, format="%.2f", step=0.0, key=f"{key_prefix}_val")
-            
-            if price_val > 0:
-                tf_ready = True
-                st.success(f"Confirmed at {price_val}")
-        
-        return tf_ready
+# ROW 1: HEADERS
+c4h.subheader("⏳ 4H BIAS")
+c1h.subheader("⏱️ 1H STRUCTURE")
+c5m.subheader("⚡ 5M SHIFT")
 
-phase1_ready = render_tf_column(c4h, "⏳ 4H BIAS", "4h")
-phase2_ready = render_tf_column(c1h, "⏱️ 1H STRUCTURE", "1h")
-phase3_ready = render_tf_column(c5m, "⚡ 5M SHIFT", "5m")
+# ROW 2: TREND SELECTION
+htf_bias = c4h.radio("4H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", label_visibility="collapsed")
+itf_trend = c1h.radio("1H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", label_visibility="collapsed")
+ltf_trend = c5m.radio("5M Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="5m_t", label_visibility="collapsed")
+
+st.markdown(" ") # Spacer
+
+# ROW 3: SWING HIGHS
+s4_h = c4h.number_input("4H Swing High", value=0.0, format="%.2f", step=0.0, key="s4h")
+s1_h = c1h.number_input("1H Swing High", value=0.0, format="%.2f", step=0.0, key="s1h")
+s5_h = c5m.number_input("5M Swing High", value=0.0, format="%.2f", step=0.0, key="s5h")
+
+# ROW 4: SWING LOWS
+s4_l = c4h.number_input("4H Swing Low", value=0.0, format="%.2f", step=0.0, key="s4l")
+s1_l = c1h.number_input("1H Swing Low", value=0.0, format="%.2f", step=0.0, key="s1l")
+s5_l = c5m.number_input("5M Swing Low", value=0.0, format="%.2f", step=0.0, key="s5l")
+
+# ROW 5: CONFIRMATION CHECKBOXES
+bias_4h_ok = c4h.checkbox("4H Confirmed", disabled=not (s4_h > 0 and s4_l > 0), key="c4h")
+bias_1h_ok = c1h.checkbox("1H Confirmed", disabled=not (s1_h > 0 and s1_l > 0), key="c1h")
+bias_5m_ok = c5m.checkbox("5M Confirmed", disabled=not (s5_h > 0 and s5_l > 0), key="c5h")
+
+# Logic Check for Three Phases
+phase1_ready = bias_4h_ok and htf_bias != "Ranging"
+phase2_ready = bias_1h_ok and itf_trend != "Ranging"
+phase3_ready = bias_5m_ok and ltf_trend != "Ranging"
 
 # ---------------- POI & EXECUTION ---------------- #
 st.markdown("---")
@@ -127,9 +133,9 @@ with col_poi:
     inside_zone = False
     if POI_DB:
         selected_poi = st.selectbox("Active POI", list(POI_DB.keys()))
-        check_price = st.number_input("Current Market Price", value=0.0, format="%.2f", step=0.0)
+        curr_price = st.number_input("Market Price", value=0.0, format="%.2f", step=0.0)
         target = POI_DB[selected_poi]
-        if target["low"] <= check_price <= target["high"]:
+        if target["low"] <= curr_price <= target["high"]:
             st.success("✅ AT POI")
             inside_zone = True
         else:
@@ -148,15 +154,13 @@ with col_exec:
             lot = current_risk_usd / (pips * 10) if pips > 0 else 0
             st.metric("Lot Size", round(lot, 2))
             
-            # FINAL CHECK
+            # FINAL CHECK: Trends + POI + News
             if phase1_ready and phase2_ready and phase3_ready and inside_zone and news_ok:
-                st.success("🔥 ALL CONFLUENCES MET: EXECUTE")
+                st.success("🔥 ALL TRENDS ALIGNED: EXECUTE")
             else:
-                st.error("🚫 DO NOT ENTER: Check Structural Steps")
+                st.error("🚫 DO NOT ENTER: Check Alignment")
 
     if entry > 0 and sl > 0:
         diff = abs(entry - sl)
         is_buy = entry > sl
-        tp1 = round(entry + (diff * 1.5 if is_buy else -diff * 1.5), 2)
-        tp2 = round(entry + (diff * 3.0 if is_buy else -diff * 3.0), 2)
-        st.write(f"**TP1 (1.5R):** {tp1}  |  **TP2 (3.0R):** {tp2}")
+        st.write(f"TP1 (1.5R): **{round(entry + (diff * 1.5 if is_buy else -diff * 1.5), 2)}** | TP2 (3.0R): **{round(entry + (diff * 3.0 if is_buy else -diff * 3.0), 2)}**")
