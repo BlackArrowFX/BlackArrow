@@ -28,24 +28,26 @@ with st.sidebar:
         current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
 
     st.header("🌍 News Filter")
+    # THE MASTER LOCK: Default is OFF
     news_ok = st.toggle("No High Impact News", value=False)
     
     if not news_ok:
-        st.warning("⚠️ System Locked: Confirm news is clear.")
+        st.error("🚨 SYSTEM LOCKED: You must confirm NO HIGH IMPACT NEWS to proceed.")
 
     if "trade_count" not in st.session_state: st.session_state.trade_count = 0
 
     st.header("📊 Daily Journal")
-    loss_disabled = not news_ok or st.session_state.trade_count >= 3
+    # Journal is locked if news is not cleared
+    journal_disabled = not news_ok or st.session_state.trade_count >= 3
     
     col_loss, col_win = st.columns(2)
     with col_loss:
-        if st.button("❌ LOSS", disabled=loss_disabled, use_container_width=True):
+        if st.button("❌ LOSS", disabled=journal_disabled, use_container_width=True):
             st.session_state.balance -= current_risk_usd
             st.session_state.trade_count += 1
             st.rerun()
     with col_win:
-        if st.button("✅ WIN", disabled=loss_disabled, use_container_width=True):
+        if st.button("✅ WIN", disabled=journal_disabled, use_container_width=True):
             st.session_state.balance += (current_risk_usd * 2) 
             st.session_state.trade_count += 1
             st.rerun()
@@ -60,38 +62,42 @@ c4h, c1h, c30m, c15m = st.columns(4)
 
 # --- 4H BIAS ---
 c4h.subheader("⏳ 4H BIAS")
+# Locked by News
 htf_bias = c4h.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", disabled=not news_ok)
-h_lock = (htf_bias == "Select...") or not news_ok
+h_val_lock = (htf_bias == "Select...") or not news_ok
 
-s4_h = c4h.number_input("Swing High", value=0.0, format="%.2f", key="s4h", disabled=h_lock)
-s4_l = c4h.number_input("Swing Low", value=0.0, format="%.2f", key="s4l", disabled=h_lock)
-bias_4h_ok = c4h.checkbox("4H Confirmed", key="4h_c", disabled=h_lock or not (s4_h > 0 and s4_l > 0))
+s4_h = c4h.number_input("Swing High", value=0.0, format="%.2f", key="s4h", disabled=h_val_lock)
+s4_l = c4h.number_input("Swing Low", value=0.0, format="%.2f", key="s4l", disabled=h_val_lock)
+bias_4h_ok = c4h.checkbox("4H Confirmed", key="4h_c", disabled=h_val_lock or not (s4_h > 0 and s4_l > 0))
 
 # --- 1H STRUC ---
 c1h.subheader("⏱️ 1H STRUC")
+# Locked by 4H Confirmation
 itf_trend = c1h.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", disabled=not bias_4h_ok)
-i_lock = (itf_trend == "Select...") or not bias_4h_ok
+i_val_lock = (itf_trend == "Select...") or not bias_4h_ok
 
-s1_h = c1h.number_input("Swing High", value=0.0, format="%.2f", key="s1h", disabled=i_lock)
-s1_l = c1h.number_input("Swing Low", value=0.0, format="%.2f", key="s1l", disabled=i_lock)
-bias_1h_ok = c1h.checkbox("1H Confirmed", key="1h_c", disabled=i_lock or not (s1_h > 0 and s1_l > 0))
+s1_h = c1h.number_input("Swing High", value=0.0, format="%.2f", key="s1h", disabled=i_val_lock)
+s1_l = c1h.number_input("Swing Low", value=0.0, format="%.2f", key="s1l", disabled=i_val_lock)
+bias_1h_ok = c1h.checkbox("1H Confirmed", key="1h_c", disabled=i_val_lock or not (s1_h > 0 and s1_l > 0))
 
 # --- 30M SHIFT ---
 c30m.subheader("⚡ 30M SHIFT")
+# Locked by 1H Confirmation
 t30_trend = c30m.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="30m_t", disabled=not bias_1h_ok)
-m30_lock = (t30_trend == "Select...") or not bias_1h_ok
+m30_val_lock = (t30_trend == "Select...") or not bias_1h_ok
 
-s30_h = c30m.number_input("Swing High", value=0.0, format="%.2f", key="s30h", disabled=m30_lock)
-s30_l = c30m.number_input("Swing Low", value=0.0, format="%.2f", key="s30l", disabled=m30_lock)
-bias_30m_ok = c30m.checkbox("30M Confirmed", key="30m_c", disabled=m30_lock or not (s30_h > 0 and s30_l > 0))
+s30_h = c30m.number_input("Swing High", value=0.0, format="%.2f", key="s30h", disabled=m30_val_lock)
+s30_l = c30m.number_input("Swing Low", value=0.0, format="%.2f", key="s30l", disabled=m30_val_lock)
+bias_30m_ok = c30m.checkbox("30M Confirmed", key="30m_c", disabled=m30_val_lock or not (s30_h > 0 and s30_l > 0))
 
 # --- 15M ENTRY ---
 c15m.subheader("🎯 15M ENTRY")
+# Locked by 30M Confirmation
 t15_trend = c15m.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="15m_t", disabled=not bias_30m_ok)
-m15_lock = (t15_trend == "Select...") or not bias_30m_ok
+m15_val_lock = (t15_trend == "Select...") or not bias_30m_ok
 
-s15_h = c15m.number_input("Swing High", value=0.0, format="%.2f", key="s15h", disabled=m15_lock)
-s15_l = c15m.number_input("Swing Low", value=0.0, format="%.2f", key="s15l", disabled=m15_lock)
+s15_h = c15m.number_input("Swing High", value=0.0, format="%.2f", key="s15h", disabled=m15_val_lock)
+s15_l = c15m.number_input("Swing Low", value=0.0, format="%.2f", key="s15l", disabled=m15_val_lock)
 bias_15m_ok = c15m.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15_h > 0 and s15_l > 0))
 
 # ---------------- MARKET INTELLIGENCE ---------------- #
@@ -101,16 +107,16 @@ st.subheader("🧠 Market Intelligence")
 if bias_15m_ok:
     if htf_bias == "Bullish ⬆️":
         if itf_trend == "Bearish ⬇️":
-            st.info("📉 COMMENT: 4H BULLISH PULLBACK. Price is hunting for a 4H Higher Low.")
+            st.info("📉 COMMENT: 4H BULLISH PULLBACK. Lower timeframes are bearish as price hunts for a 4H Higher Low.")
         elif itf_trend == "Bullish ⬆️" and t15_trend == "Bullish ⬆️":
             st.success("🚀 COMMENT: QUAD-TIMEFRAME BULLISH ALIGNMENT.")
     elif htf_bias == "Bearish ⬇️":
         if itf_trend == "Bullish ⬆️":
-            st.info("📈 COMMENT: 4H BEARISH RETRACEMENT. Price is hunting for a 4H Lower High.")
+            st.info("📈 COMMENT: 4H BEARISH RETRACEMENT. Lower timeframes are bullish as price hunts for a 4H Lower High.")
         elif itf_trend == "Bearish ⬇️" and t15_trend == "Bearish ⬇️":
             st.success("🔥 COMMENT: QUAD-TIMEFRAME BEARISH ALIGNMENT.")
 else:
-    st.write("⏳ Step 1: Select Trend -> Step 2: Enter Swing Levels -> Step 3: Confirm.")
+    st.write("⏳ System Status: Waiting for full News and Timeframe confirmation sequence.")
 
 # ---------------- PHASE 2 & 3 ---------------- #
 st.markdown("---")
