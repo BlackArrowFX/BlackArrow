@@ -12,6 +12,9 @@ with st.sidebar:
     st.header("⚙️ System Config")
     symbol = st.text_input("Enter Instrument", value="XAUUSD").upper()
     
+    # NEW: Asset Class Selector for Precision Math
+    asset_type = st.selectbox("Select Asset Class", ["METAL (Gold/Silver)", "FOREX", "INDICES / CRYPTO"])
+    
     st.markdown("---")
     st.header("💰 Risk Engine")
     if "balance" not in st.session_state:
@@ -46,27 +49,27 @@ with st.sidebar:
 
 # ---------------- DYNAMIC HEADLINE ---------------- #
 st.title(f"🏹 BlackArrowFX: {symbol} Precision Engine")
-st.caption(f"Asset: {symbol} | Server Time: {dt_string}")
+st.caption(f"Asset: {symbol} | Mode: {asset_type} | Server Time: {dt_string}")
 st.markdown("---")
 
 # ---------------- TRIPLE TIMEFRAME ANALYSIS ---------------- #
 c4h, c1h, c5m = st.columns(3)
 
-# 4H
+# 4H BIAS
 c4h.subheader(f"⏳ 4H BIAS")
 htf_bias = c4h.radio("4H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", disabled=not news_ok)
 s4_h = c4h.number_input("4H Swing High", value=0.0, format="%.2f", key="s4h", disabled=not news_ok)
 s4_l = c4h.number_input("4H Swing Low", value=0.0, format="%.2f", key="s4l", disabled=not news_ok)
 bias_4h_ok = c4h.checkbox("4H Confirmed", disabled=not (s4_h > 0 and s4_l > 0) or not news_ok)
 
-# 1H
+# 1H STRUCTURE (Unlocks after 4H)
 c1h.subheader(f"⏱️ 1H STRUCTURE")
 itf_trend = c1h.radio("1H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", disabled=not bias_4h_ok)
 s1_h = c1h.number_input("1H Swing High", value=0.0, format="%.2f", key="s1h", disabled=not bias_4h_ok)
 s1_l = c1h.number_input("1H Swing Low", value=0.0, format="%.2f", key="s1l", disabled=not bias_4h_ok)
 bias_1h_ok = c1h.checkbox("1H Confirmed", disabled=not (s1_h > 0 and s1_l > 0) or not bias_4h_ok)
 
-# 5M
+# 5M SHIFT (Unlocks after 1H)
 c5m.subheader(f"⚡ 5M SHIFT")
 ltf_trend = c5m.radio("5M Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="5m_t", disabled=not bias_1h_ok)
 s5_h = c5m.number_input("5M Swing High", value=0.0, format="%.2f", key="s5h", disabled=not bias_1h_ok)
@@ -85,30 +88,35 @@ with col_poi:
 with col_exec:
     st.header(f"🚀 PHASE 3: EXECUTE")
     
-    # Pip Calculation Logic
-    if any(x in symbol for x in ["XAU", "GOLD", "JPY"]): pip_factor = 0.01
-    elif any(x in symbol for x in ["US30", "NAS100", "GER40"]): pip_factor = 1.0
-    else: pip_factor = 0.0001
+    # 1. SET PIP FACTOR BASED ON USER SELECTION
+    if asset_type == "METAL (Gold/Silver)":
+        pip_factor = 0.1  # This ensures 15 pips = 1.50 points
+    elif asset_type == "FOREX":
+        pip_factor = 0.0001 # Standard 4th decimal pip
+    else:
+        pip_factor = 1.0    # 1:1 for US30, NAS100, BTC
         
-    # Logic: Stop Loss = Zone Price +/- 15 pips
+    # 2. CALC STOP LOSS (Zone +/- 15 Pips)
     calculated_sl = 0.0
     if zone_price > 0:
         is_short_poi = any(x in poi_type for x in ["High", "Supply"])
-        # If shorting a High/Supply, SL is above (Zone + 15). If longing Low/Demand, SL is below (Zone - 15).
+        # Short: SL is above zone | Long: SL is below zone
         calculated_sl = zone_price + (15 * pip_factor) if is_short_poi else zone_price - (15 * pip_factor)
 
-    # REORDERED: Stop Loss First, Entry Second
-    sl = st.number_input("Stop Loss (Auto-calculated)", value=calculated_sl, format="%.2f", disabled=not (zone_price > 0))
+    # 3. REORDERED INPUTS
+    sl = st.number_input("Stop Loss (Zone +/- 15 Pips)", value=calculated_sl, format="%.2f", disabled=not (zone_price > 0))
     entry = st.number_input("Entry Price (Manual)", value=0.0, format="%.2f", disabled=not (zone_price > 0))
     
     if entry > 0 and sl > 0:
-        pips = abs(entry - sl) / pip_factor
-        lot = (current_risk_usd / pips) / 10 if pips > 0 else 0
+        pips_diff = abs(entry - sl) / pip_factor
+        # Simplified lot sizing logic
+        lot = (current_risk_usd / pips_diff) / 10 if pips_diff > 0 else 0
+        
         st.metric(f"Calculated Lot Size", f"{round(lot, 2)}")
-        st.caption(f"Risk Distance: {round(pips, 1)} pips")
+        st.caption(f"Risk Distance: {round(pips_diff, 1)} pips")
 
 # ---------------- FINAL STATUS ---------------- #
 if bias_4h_ok and bias_1h_ok and bias_5m_ok and news_ok:
-    st.success(f"🔥 {symbol} READY")
+    st.success(f"🔥 {symbol} READY FOR EXECUTION")
 else:
-    st.info("Follow the confirmation sequence to unlock execution.")
+    st.info("Follow the confirmation sequence (4H -> 1H -> 5M) to unlock.")
