@@ -30,7 +30,8 @@ with st.sidebar:
         risk_pct = st.slider("Risk per Trade (%)", 0.25, 10.0, 5.0)
         current_risk_usd = st.session_state.balance * (risk_pct / 100)
     else:
-        current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
+        # Changed to 0.0 step for easier manual key-in
+        current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0, step=0.0)
 
     max_daily_risk_limit = st.session_state.balance * 0.10
     st.info(f"Active Risk: ${round(current_risk_usd, 2)}")
@@ -52,7 +53,8 @@ with st.sidebar:
 
     win_disabled = st.session_state.trade_count >= 3
     with st.expander("✅ RECORD WIN", expanded=not win_disabled):
-        manual_profit = st.number_input("Profit Made ($)", min_value=0.0, value=current_risk_usd * 2)
+        # Changed to 0.0 step for manual key-in
+        manual_profit = st.number_input("Profit Made ($)", min_value=0.0, value=current_risk_usd * 2, step=0.0)
         if st.button("Add to Balance", disabled=win_disabled):
             st.session_state.balance += manual_profit
             st.session_state.trade_count += 1
@@ -85,24 +87,23 @@ with col_bias1:
     st.subheader("4H Market Structure")
     htf_bias = st.radio("Current Trend", ["Bullish (HH/HL) ⬆️", "Bearish (LH/LL) ⬇️", "Ranging/Unclear ↔️"])
     
-    # Input fields for Swing Points
-    swing_h_val = st.number_input("Input 4H Swing High Price", value=0.0, format="%.3f")
-    swing_l_val = st.number_input("Input 4H Swing Low Price", value=0.0, format="%.3f")
+    # KEY FIX: Step=0.0 removes the +/- buttons and allows direct typing
+    swing_h_val = st.number_input("Input 4H Swing High Price", value=0.0, format="%.2f", step=0.0)
+    swing_l_val = st.number_input("Input 4H Swing Low Price", value=0.0, format="%.2f", step=0.0)
     
-    # Logic: Only allow confirmation if prices are entered (> 0)
     inputs_ready = swing_h_val > 0 and swing_l_val > 0
     
     bias_confirmed = st.checkbox(
         "4H Trend Confirmed", 
         disabled=not inputs_ready,
-        help="Input Swing High and Low prices to unlock this checkbox."
+        help="Type in the High/Low prices to unlock."
     )
     
     if bias_confirmed and htf_bias != "Ranging/Unclear ↔️":
         st.success("✅ 4H TREND VALIDATED")
         trend_tick = True
     else:
-        st.warning("⏳ Complete Swing Inputs & Confirm Trend")
+        st.warning("⏳ Enter Prices & Confirm Trend")
         trend_tick = False
 
 with col_bias2:
@@ -132,7 +133,8 @@ inside_zone = False
 if POI_DB:
     st.success(f"Parsed {len(POI_DB)} Zones")
     selected_poi = st.selectbox("Select Active 1H POI", list(POI_DB.keys()))
-    price = st.number_input("Current Market Price", value=0.0, format="%.2f")
+    # Step=0.0 for manual typing
+    price = st.number_input("Current Market Price", value=0.0, format="%.2f", step=0.0)
     target = POI_DB[selected_poi]
     if target["low"] <= price <= target["high"]:
         st.success("✅ PRICE AT 1H POI")
@@ -154,8 +156,9 @@ st.header("PHASE 4: EXECUTION ENGINE")
 calc_c1, calc_c2, calc_c3 = st.columns(3)
 
 with calc_c1:
-    entry = st.number_input("Entry Price", value=0.0, format="%.2f")
-    sl = st.number_input("Stop Loss", value=0.0, format="%.2f")
+    # Step=0.0 for manual typing
+    entry = st.number_input("Entry Price", value=0.0, format="%.2f", step=0.0)
+    sl = st.number_input("Stop Loss", value=0.0, format="%.2f", step=0.0)
 
 with calc_c2:
     if entry > 0 and sl > 0:
