@@ -11,8 +11,6 @@ dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 # ---------------- SIDEBAR: RISK & ASSET ---------------- #
 with st.sidebar:
     st.header("⚙️ System Config")
-    
-    # NEW: Manual Instrument Input
     symbol = st.text_input("Enter Instrument (e.g., XAUUSD, EURUSD, US30)", value="XAUUSD").upper()
     
     st.markdown("---")
@@ -36,8 +34,6 @@ with st.sidebar:
     st.markdown(f"[Check Forex Factory for {symbol} 📅](https://www.forexfactory.com/)")
     news_ok = st.toggle("No High Impact News")
 
-    st.markdown("---")
-    # Session State for Journaling
     if "trade_count" not in st.session_state:
         st.session_state.trade_count = 0
     if "daily_loss_total" not in st.session_state:
@@ -81,16 +77,16 @@ with col_p0_2:
     st.checkbox(f"{symbol} News Cleared", value=news_ok, disabled=True)
 
 if not trade_limit_ok or st.session_state.daily_loss_total >= max_daily_risk_limit:
-    st.error(f"🛑 TRADING LOCKED: Daily limits reached for {symbol}.")
+    st.error(f"🛑 TRADING LOCKED: Daily limits reached.")
     st.stop()
 
 # ---------------- TRIPLE TIMEFRAME ANALYSIS ---------------- #
 st.markdown("---")
 c4h, c1h, c5m = st.columns(3)
 
-c4h.subheader(f"⏳ 4H {symbol} BIAS")
-c1h.subheader(f"⏱️ 1H {symbol} STRUCT")
-c5m.subheader(f"⚡ 5M {symbol} SHIFT")
+c4h.subheader(f"⏳ 4H BIAS")
+c1h.subheader(f"⏱️ 1H STRUCT")
+c5m.subheader(f"⚡ 5M SHIFT")
 
 htf_bias = c4h.radio("4H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", label_visibility="collapsed")
 itf_trend = c1h.radio("1H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", label_visibility="collapsed")
@@ -104,22 +100,36 @@ s4_l = c4h.number_input("4H Swing Low", value=0.0, format="%.2f", key="s4l")
 s1_l = c1h.number_input("1H Swing Low", value=0.0, format="%.2f", key="s1l")
 s5_l = c5m.number_input("5M Swing Low", value=0.0, format="%.2f", key="s5l")
 
-bias_4h_ok = c4h.checkbox("4H Confirmed", disabled=not (s4_h > 0 and s4_l > 0), key="c4h_check")
-bias_1h_ok = c1h.checkbox("1H Confirmed", disabled=not (s1_h > 0 and s1_l > 0), key="c1h_check")
-bias_5m_ok = c5m.checkbox("5M Confirmed", disabled=not (s5_h > 0 and s5_l > 0), key="c5h_check")
+bias_4h_ok = c4h.checkbox("4H Confirmed", disabled=not (s4_h > 0 and s4_l > 0))
+bias_1h_ok = c1h.checkbox("1H Confirmed", disabled=not (s1_h > 0 and s1_l > 0))
+bias_5m_ok = c5m.checkbox("5M Confirmed", disabled=not (s5_h > 0 and s5_l > 0))
 
 phase1_ready = bias_4h_ok and htf_bias != "Ranging"
 phase2_ready = bias_1h_ok and itf_trend != "Ranging"
 phase3_ready = bias_5m_ok and ltf_trend != "Ranging"
 
-# ---------------- PHASE 2: POI PLAN ---------------- #
+# ---------------- PHASE 2: POI PLAN (EXPANDED) ---------------- #
 st.markdown("---")
 col_poi, col_exec = st.columns([1, 2])
 
 with col_poi:
     st.header(f"📋 PHASE 2: {symbol} POI")
-    poi_type = st.selectbox("Where am I trading?", ["Select POI...", "Supply Zone", "Demand Zone", "Order Block", "FVG / Imbalance"])
     
+    # ADDED SWING HIGH / SWING LOW TO SELECTBOX
+    poi_type = st.selectbox("Where am I trading?", [
+        "Select POI...", 
+        "Supply Zone", 
+        "Demand Zone", 
+        "Order Block", 
+        "FVG / Imbalance",
+        "HTF Swing High (Liquidity)", 
+        "HTF Swing Low (Liquidity)",
+        "Equal Highs/Lows (BSL/SSL)"
+    ])
+    
+    # Requirement: Liquidity Sweep Check
+    liq_sweep = st.toggle("Liquidity Swept? (Grab & Reverse)")
+
     raw_text = st.text_area(f"Paste 1H {symbol} POI Zones", height=100, placeholder="Example: 1H Demand 2340.50 - 2345.00")
     POI_DB = {}
     if raw_text:
@@ -156,16 +166,13 @@ with col_exec:
     with calc_c2:
         if entry > 0 and sl > 0:
             raw_diff = abs(entry - sl)
-            
-            # AUTOMATIC PIP LOGIC BASED ON SYMBOL
             if any(x in symbol for x in ["XAU", "GOLD", "JPY"]):
                 pips = raw_diff * 100 
             elif any(x in symbol for x in ["US30", "NAS100", "GER40", "BTC", "ETH"]):
-                pips = raw_diff # Indices/Crypto usually 1 point = 1 pip
+                pips = raw_diff
             else:
-                pips = raw_diff * 10000 # Standard Forex Majors
+                pips = raw_diff * 10000 
 
-            # Lot size: (Risk Amount / Pips) / 10
             lot = (current_risk_usd / pips) / 10 if pips > 0 else 0
             st.metric(f"{symbol} Lot Size", f"{round(lot, 2)} Lots")
 
@@ -174,12 +181,12 @@ with col_exec:
     with st.expander("🔍 Confluence Checklist", expanded=True):
         c1 = st.checkbox(f"{symbol} Trends Aligned", value=phase1_ready and phase2_ready and phase3_ready, disabled=True)
         c2 = st.checkbox(f"{symbol} POI Confirmed", value=poi_confirmed, disabled=True)
-        c3 = st.checkbox("Risk & News Cleared", value=news_ok, disabled=True)
+        c3 = st.checkbox("Liquidity Grab Confirmed", value=liq_sweep)
         
-        if c1 and c2 and c3:
+        if c1 and c2 and c3 and news_ok:
             st.success(f"🔥 {symbol} HIGH PROBABILITY SETUP")
         else:
-            st.warning(f"⚠️ {symbol} NOT ALIGNED")
+            st.warning(f"⚠️ {symbol} CHECK ALIGNMENT / LIQUIDITY")
 
     if entry > 0 and sl > 0:
         is_buy = entry > sl
