@@ -31,23 +31,26 @@ with st.sidebar:
     else:
         current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
 
-    # ---------------- 2. NEWS FILTER (Moved Above Journal) ---------------- #
+    # ---------------- 2. NEWS FILTER (Defaulted to OFF) ---------------- #
     st.markdown("---")
     st.header("🌍 News Filter")
-    # Defaulting to True so the filter is "Off/Cleared" by default
-    news_ok = st.toggle("No High Impact News", value=True) 
+    
+    # Toggle is physically OFF (False) by default
+    high_impact_news = st.toggle("High Impact News Active", value=False) 
+    
+    # Logic: System is OK only if high_impact_news is False
+    news_ok = not high_impact_news
     
     if not news_ok:
-        st.error("🚨 SYSTEM LOCKED: News must be cleared.")
+        st.error("🚨 SYSTEM LOCKED: News impact detected.")
+    else:
+        st.success("✅ System Unlocked")
 
     # ---------------- 3. THE JOURNAL COMPONENT ---------------- #
     st.markdown("---")
     st.header("📊 Daily Journal")
 
-    # Display counter
     st.write(f"Trades Taken: **{st.session_state.trades_taken} / 3**")
-
-    # Check if limit is reached
     limit_reached = st.session_state.trades_taken >= 3
 
     if limit_reached:
