@@ -10,14 +10,7 @@ dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 # ---------------- SIDEBAR: RISK & ASSET ---------------- #
 with st.sidebar:
     st.header("⚙️ System Config")
-    
-    # ASSET CLASS
-    asset_type = st.selectbox(
-        "Select Asset Class", 
-        ["METAL (Gold/Silver)", "FOREX", "INDICES / CRYPTO"]
-    )
-    
-    # INSTRUMENT
+    asset_type = st.selectbox("Select Asset Class", ["METAL (Gold/Silver)", "FOREX", "INDICES / CRYPTO"])
     symbol = st.text_input("Enter Instrument", value="XAUUSD").upper()
     
     st.markdown("---")
@@ -35,19 +28,17 @@ with st.sidebar:
         current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
 
     st.header("🌍 News Filter")
-    # AMENDED: value=False sets the default to TURNED OFF
     news_ok = st.toggle("No High Impact News", value=False)
     
     if not news_ok:
-        st.warning("⚠️ Action Blocked: Confirm news is clear to unlock system.")
-
-    if "trade_count" not in st.session_state:
-        st.session_state.trade_count = 0
+        st.warning("⚠️ System Locked: Confirm news is clear.")
 
     st.header("📊 Daily Journal")
-    loss_disabled = not news_ok or st.session_state.trade_count >= 3
+    loss_disabled = not news_ok or st.session_state.trade_count >= 3 if "trade_count" in st.session_state else True
     
     col_loss, col_win = st.columns(2)
+    if "trade_count" not in st.session_state: st.session_state.trade_count = 0
+    
     with col_loss:
         if st.button("❌ LOSS", disabled=loss_disabled, use_container_width=True):
             st.session_state.balance -= current_risk_usd
@@ -65,7 +56,7 @@ st.caption(f"Asset: {symbol} | Mode: {asset_type} | Server Time: {dt_string}")
 st.markdown("---")
 
 # ---------------- TRIPLE TIMEFRAME ANALYSIS ---------------- #
-c4h, c1h, c5m = st.columns(3)
+c4h, c1h, cltf = st.columns(3)
 
 # 4H BIAS
 c4h.subheader(f"⏳ 4H BIAS")
@@ -81,12 +72,31 @@ s1_h = c1h.number_input("1H Swing High", value=0.0, format="%.2f", key="s1h", di
 s1_l = c1h.number_input("1H Swing Low", value=0.0, format="%.2f", key="s1l", disabled=not bias_4h_ok)
 bias_1h_ok = c1h.checkbox("1H Confirmed", key="1h_c", disabled=not (s1_h > 0 and s1_l > 0) or not bias_4h_ok)
 
-# 5M SHIFT
-c5m.subheader(f"⚡ 5M SHIFT")
-ltf_trend = c5m.radio("5M Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="5m_t", disabled=not bias_1h_ok)
-s5_h = c5m.number_input("5M Swing High", value=0.0, format="%.2f", key="s5h", disabled=not bias_1h_ok)
-s5_l = c5m.number_input("5M Swing Low", value=0.0, format="%.2f", key="s5l", disabled=not bias_1h_ok)
-bias_5m_ok = c5m.checkbox("5M Confirmed", key="5m_c", disabled=not (s5_h > 0 and s5_l > 0) or not bias_1h_ok)
+# NEW: SELECTABLE LTF SHIFT (15M / 30M)
+cltf.subheader(f"⚡ LTF SHIFT")
+ltf_choice = cltf.selectbox("Select Timeframe", ["15M", "30M"], disabled=not bias_1h_ok)
+ltf_trend = cltf.radio(f"{ltf_choice} Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="ltf_t", disabled=not bias_1h_ok)
+s_ltf_h = cltf.number_input(f"{ltf_choice} Swing High", value=0.0, format="%.2f", key="sltfh", disabled=not bias_1h_ok)
+s_ltf_l = cltf.number_input(f"{ltf_choice} Swing Low", value=0.0, format="%.2f", key="sltfl", disabled=not bias_1h_ok)
+bias_ltf_ok = cltf.checkbox(f"{ltf_choice} Confirmed", key="ltf_c", disabled=not (s_ltf_h > 0 and s_ltf_l > 0) or not bias_1h_ok)
+
+# ---------------- SYSTEM INTELLIGENCE: ALIGNMENT LOGIC ---------------- #
+st.markdown("---")
+st.subheader("🧠 Market Intelligence")
+
+if bias_ltf_ok:
+    if htf_bias == "Bullish ⬆️":
+        if itf_trend == "Bearish ⬇️":
+            st.info(f"📉 COMMENT: 4H BULLISH PULLBACK. {ltf_choice} is bearish as price hunts for a 4H Higher Low. Look for Demand POIs.")
+        elif itf_trend == "Bullish ⬆️" and ltf_trend == "Bullish ⬆️":
+            st.success("🚀 COMMENT: FULL BULLISH ALIGNMENT. All cylinders firing for a trend continuation.")
+    elif htf_bias == "Bearish ⬇️":
+        if itf_trend == "Bullish ⬆️":
+            st.info(f"📈 COMMENT: 4H BEARISH RETRACEMENT. {ltf_choice} is bullish as price hunts for a 4H Lower High. Look for Supply POIs.")
+        elif itf_trend == "Bearish ⬇️" and ltf_trend == "Bearish ⬇️":
+            st.success("🔥 COMMENT: FULL BEARISH ALIGNMENT. Order flow is perfectly synchronized for shorts.")
+else:
+    st.write("⏳ Waiting for timeframe confirmation to provide market intelligence...")
 
 # ---------------- PHASE 2 & 3 ---------------- #
 st.markdown("---")
@@ -94,19 +104,12 @@ col_poi, col_exec = st.columns([1, 2])
 
 with col_poi:
     st.header(f"📋 PHASE 2: POI")
-    poi_list = ["Select POI...", "Swing High", "Swing Low", "Supply Zone", "Demand Zone", "Order Block", "FVG / Imbalance"]
-    poi_type = st.selectbox("Where am I trading?", poi_list, disabled=not bias_5m_ok)
-    zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f", disabled=not bias_5m_ok)
+    poi_type = st.selectbox("Where am I trading?", ["Select POI...", "Swing High", "Swing Low", "Supply Zone", "Demand Zone", "Order Block", "FVG / Imbalance"], disabled=not bias_ltf_ok)
+    zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f", disabled=not bias_ltf_ok)
 
 with col_exec:
     st.header(f"🚀 PHASE 3: EXECUTE")
-    
-    if asset_type == "METAL (Gold/Silver)":
-        pip_factor = 0.1 
-    elif asset_type == "FOREX":
-        pip_factor = 0.0001
-    else:
-        pip_factor = 1.0 
+    pip_factor = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
         
     calculated_sl = 0.0
     if zone_price > 0:
@@ -121,9 +124,3 @@ with col_exec:
         lot = (current_risk_usd / pips_diff) / 10 if pips_diff > 0 else 0
         st.metric(f"Calculated Lot Size", f"{round(lot, 2)}")
         st.caption(f"Risk Distance: {round(pips_diff, 1)} pips")
-
-# ---------------- FINAL STATUS ---------------- #
-if bias_4h_ok and bias_1h_ok and bias_5m_ok and news_ok:
-    st.success(f"🔥 {symbol} ALIGNED")
-else:
-    st.info("System Locked: Check news and follow timeframe confirmation (4H -> 1H -> 5M).")
