@@ -1,5 +1,4 @@
 import streamlit as st
-import re
 from datetime import datetime
 
 # ---------------- SETUP ---------------- #
@@ -11,7 +10,7 @@ dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 # ---------------- SIDEBAR: RISK & ASSET ---------------- #
 with st.sidebar:
     st.header("⚙️ System Config")
-    symbol = st.text_input("Enter Instrument (e.g., XAUUSD, EURUSD, US30)", value="XAUUSD").upper()
+    symbol = st.text_input("Enter Instrument", value="XAUUSD").upper()
     
     st.markdown("---")
     st.header("💰 Risk Engine")
@@ -38,6 +37,7 @@ with st.sidebar:
         st.session_state.daily_loss_total = 0.0
 
     st.header("📊 Daily Journal")
+    # Locked if no news cleared or limit reached
     loss_disabled = not news_ok or st.session_state.trade_count >= 3 or st.session_state.daily_loss_total >= max_daily_risk_limit
     if st.button("❌ RECORD LOSS", disabled=loss_disabled, use_container_width=True):
         st.session_state.balance -= current_risk_usd
@@ -47,7 +47,7 @@ with st.sidebar:
 
     win_disabled = not news_ok or st.session_state.trade_count >= 3
     if st.button("✅ RECORD WIN", disabled=win_disabled, use_container_width=True):
-        st.session_state.balance += (current_risk_usd * 2) # Default 2R win
+        st.session_state.balance += (current_risk_usd * 2) 
         st.session_state.trade_count += 1
         st.rerun()
 
@@ -66,14 +66,14 @@ s4_h = c4h.number_input("4H Swing High", value=0.0, format="%.2f", key="s4h", di
 s4_l = c4h.number_input("4H Swing Low", value=0.0, format="%.2f", key="s4l", disabled=not news_ok)
 bias_4h_ok = c4h.checkbox("4H Confirmed", value=False, key="4h_conf", disabled=not (s4_h > 0 and s4_l > 0) or not news_ok)
 
-# --- 1H STRUCTURE SECTION (Depends on 4H Confirmed) ---
+# --- 1H STRUCTURE SECTION (Unlocks only if 4H Confirmed) ---
 c1h.subheader(f"⏱️ 1H STRUCTURE")
 itf_trend = c1h.radio("1H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", disabled=not bias_4h_ok)
 s1_h = c1h.number_input("1H Swing High", value=0.0, format="%.2f", key="s1h", disabled=not bias_4h_ok)
 s1_l = c1h.number_input("1H Swing Low", value=0.0, format="%.2f", key="s1l", disabled=not bias_4h_ok)
 bias_1h_ok = c1h.checkbox("1H Confirmed", value=False, key="1h_conf", disabled=not (s1_h > 0 and s1_l > 0) or not bias_4h_ok)
 
-# --- 5M SHIFT SECTION (Depends on 1H Confirmed) ---
+# --- 5M SHIFT SECTION (Unlocks only if 1H Confirmed) ---
 c5m.subheader(f"⚡ 5M SHIFT")
 ltf_trend = c5m.radio("5M Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="5m_t", disabled=not bias_1h_ok)
 s5_h = c5m.number_input("5M Swing High", value=0.0, format="%.2f", key="s5h", disabled=not bias_1h_ok)
@@ -84,20 +84,26 @@ bias_5m_ok = c5m.checkbox("5M Confirmed", value=False, key="5m_conf", disabled=n
 st.markdown("---")
 col_poi, col_exec = st.columns([1, 2])
 
-# Logic checks for final probability
-phase1_ready = bias_4h_ok and htf_bias != "Ranging"
-phase2_ready = bias_1h_ok and itf_trend != "Ranging"
-phase3_ready = bias_5m_ok and ltf_trend != "Ranging"
-
 with col_poi:
     st.header(f"📋 PHASE 2: POI")
-    poi_type = st.selectbox("Where am I trading?", ["Select POI...", "Supply Zone", "Demand Zone", "Order Block", "FVG / Imbalance"], disabled=not bias_5m_ok)
+    # Updated POI List with requested names
+    poi_type = st.selectbox("Where am I trading?", [
+        "Select POI...", 
+        "Swing High", 
+        "Swing Low", 
+        "Supply Zone", 
+        "Demand Zone", 
+        "Order Block", 
+        "FVG / Imbalance"
+    ], disabled=not bias_5m_ok)
+    
     zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f", disabled=not bias_5m_ok)
 
 with col_exec:
     st.header(f"🚀 PHASE 3: EXECUTE")
+    # Pip Calculation Logic
     if any(x in symbol for x in ["XAU", "GOLD", "JPY"]): pip_factor = 0.01
-    elif any(x in symbol for x in ["US30", "NAS100"]): pip_factor = 1.0
+    elif any(x in symbol for x in ["US30", "NAS100", "GER40"]): pip_factor = 1.0
     else: pip_factor = 0.0001
         
     calculated_entry = 0.0
@@ -117,8 +123,10 @@ with col_exec:
             st.metric(f"Lot Size", f"{round(lot, 2)}")
             st.caption(f"Risk: {round(pips, 1)} pips")
 
-# Final UI State
-if phase1_ready and phase2_ready and phase3_ready and news_ok:
+# ---------------- FINAL STATUS ---------------- #
+if bias_4h_ok and bias_1h_ok and bias_5m_ok and news_ok:
     st.success(f"🔥 {symbol} HIGH PROBABILITY SETUP READY")
+elif not news_ok:
+    st.warning("⚠️ ACTION REQUIRED: Clear 'High Impact News' filter in sidebar.")
 else:
-    st.info("Waiting for full timeframe alignment and news clearance...")
+    st.info("Awaiting timeframe confirmation sequence...")
