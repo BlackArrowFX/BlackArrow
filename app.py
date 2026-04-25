@@ -3,7 +3,7 @@ from datetime import datetime
 
 # ---------------- 1. INITIALIZE GLOBAL STATE ---------------- #
 if "balance" not in st.session_state:
-    st.session_state.balance = 2146.11  # Your starting balance
+    st.session_state.balance = 2146.11  
 if "trades_taken" not in st.session_state:
     st.session_state.trades_taken = 0
 
@@ -31,7 +31,16 @@ with st.sidebar:
     else:
         current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
 
-    # ---------------- 2. THE JOURNAL COMPONENT (Integrated) ---------------- #
+    # ---------------- 2. NEWS FILTER (Moved Above Journal) ---------------- #
+    st.markdown("---")
+    st.header("🌍 News Filter")
+    # Defaulting to True so the filter is "Off/Cleared" by default
+    news_ok = st.toggle("No High Impact News", value=True) 
+    
+    if not news_ok:
+        st.error("🚨 SYSTEM LOCKED: News must be cleared.")
+
+    # ---------------- 3. THE JOURNAL COMPONENT ---------------- #
     st.markdown("---")
     st.header("📊 Daily Journal")
 
@@ -62,12 +71,6 @@ with st.sidebar:
     if st.button("Reset Daily Limits", use_container_width=True):
         st.session_state.trades_taken = 0
         st.rerun()
-
-    st.markdown("---")
-    st.header("🌍 News Filter")
-    news_ok = st.toggle("No High Impact News", value=False)
-    if not news_ok:
-        st.error("🚨 SYSTEM LOCKED: News must be cleared.")
 
 # ---------------- MAIN INTERFACE ---------------- #
 st.title(f"🏹 BlackArrowFX: {symbol} Precision Engine")
