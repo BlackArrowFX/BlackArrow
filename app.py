@@ -43,17 +43,15 @@ with st.sidebar:
     st.header("📊 Daily Journal")
     st.write(f"Trades Taken: **{st.session_state.trade_count} / 3**")
     
-    loss_disabled = st.session_state.trade_count >= 3 or st.session_state.daily_loss_total >= max_daily_risk_limit
-    if st.button("❌ RECORD LOSS", disabled=loss_disabled, use_container_width=True):
+    if st.button("❌ RECORD LOSS", disabled=(st.session_state.trade_count >= 3), use_container_width=True):
         st.session_state.balance -= current_risk_usd
         st.session_state.daily_loss_total += current_risk_usd
         st.session_state.trade_count += 1
         st.rerun()
 
-    win_disabled = st.session_state.trade_count >= 3
-    with st.expander("✅ RECORD WIN", expanded=not win_disabled):
+    with st.expander("✅ RECORD WIN"):
         manual_profit = st.number_input("Profit Made ($)", min_value=0.0, value=current_risk_usd * 2, step=0.0)
-        if st.button("Add to Balance", disabled=win_disabled):
+        if st.button("Add to Balance"):
             st.session_state.balance += manual_profit
             st.session_state.trade_count += 1
             st.rerun()
@@ -63,61 +61,50 @@ with st.sidebar:
         st.session_state.daily_loss_total = 0.0
         st.rerun()
 
-# ---------------- SHARED PRICE INPUT ---------------- #
-# We need a global market price to validate BOS/MSS automatically
-st.header("📍 LIVE MARKET DATA")
-curr_price = st.number_input("Enter Current XAUUSD Price", value=0.0, format="%.2f", step=0.0)
-st.markdown("---")
+# ---------------- PHASE 0: HARD FILTERS ---------------- #
+st.header("PHASE 0: PRE-FLIGHT CHECK")
+col_p0_1, col_p0_2 = st.columns(2)
+with col_p0_1:
+    trade_limit_ok = st.session_state.trade_count < 3
+    st.checkbox("Daily Trade Limit (Max 3)", value=trade_limit_ok, disabled=True)
+with col_p0_2:
+    st.checkbox("News Cleared", value=news_ok, disabled=True)
+
+if not trade_limit_ok:
+    st.error("🛑 TRADING LOCKED: Daily limit reached.")
+    st.stop()
 
 # ---------------- TRIPLE TIMEFRAME ANALYSIS ---------------- #
+st.markdown("---")
 c4h, c1h, c5m = st.columns(3)
 
-# --- 4H BIAS ---
-with c4h:
-    st.subheader("⏳ 4H BIAS")
-    htf_bias = st.radio("4H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", label_visibility="collapsed")
-    s4_h = st.number_input("4H Swing High", value=0.0, format="%.2f", step=0.0, key="s4h")
-    s4_l = st.number_input("4H Swing Low", value=0.0, format="%.2f", step=0.0, key="s4l")
-    
-    # Structural Logic for 4H
-    can_confirm_4h = False
-    if htf_bias == "Bullish ⬆️" and curr_price > s4_h and s4_h > 0: can_confirm_4h = True
-    elif htf_bias == "Bearish ⬇️" and curr_price < s4_l and s4_l > 0: can_confirm_4h = True
-    
-    bias_4h_ok = st.checkbox("4H BOS Confirmed", disabled=not can_confirm_4h, key="c4h")
-    if not can_confirm_4h and htf_bias != "Ranging":
-        st.caption("⚠️ Price must break Swing level to confirm.")
+def render_tf_column(col, tf_label, key_prefix):
+    with col:
+        st.subheader(f"{tf_label}")
+        bias = st.radio(f"{tf_label} Bias", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key=f"{key_prefix}_bias", label_visibility="collapsed")
+        
+        confirmed = st.checkbox(f"{tf_label} Trend Confirmed", key=f"{key_prefix}_conf")
+        
+        tf_ready = False
+        if confirmed and bias != "Ranging":
+            # Dynamic Label Logic
+            if bias == "Bullish ⬆️":
+                opt1, opt2 = "BOS (Swing High)", "MSS (Swing Low)"
+            else:
+                opt1, opt2 = "BOS (Swing Low)", "MSS (Swing High)"
+                
+            struct_type = st.selectbox("Select Structure Type", [opt1, opt2], key=f"{key_prefix}_type")
+            price_val = st.number_input(f"Enter {struct_type} Price", value=0.0, format="%.2f", step=0.0, key=f"{key_prefix}_val")
+            
+            if price_val > 0:
+                tf_ready = True
+                st.success(f"Confirmed at {price_val}")
+        
+        return tf_ready
 
-# --- 1H STRUCTURE ---
-with c1h:
-    st.subheader("⏱️ 1H STRUCTURE")
-    itf_trend = st.radio("1H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", label_visibility="collapsed")
-    s1_h = st.number_input("1H Swing High", value=0.0, format="%.2f", step=0.0, key="s1h")
-    s1_l = st.number_input("1H Swing Low", value=0.0, format="%.2f", step=0.0, key="s1l")
-    
-    # Structural Logic for 1H
-    can_confirm_1h = False
-    if itf_trend == "Bullish ⬆️" and curr_price > s1_h and s1_h > 0: can_confirm_1h = True
-    elif itf_trend == "Bearish ⬇️" and curr_price < s1_l and s1_l > 0: can_confirm_1h = True
-    
-    bias_1h_ok = st.checkbox("1H Structure Confirmed", disabled=not can_confirm_1h, key="c1h")
-
-# --- 5M SHIFT ---
-with c5m:
-    st.subheader("⚡ 5M SHIFT")
-    ltf_trend = st.radio("5M Shift", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="5m_t", label_visibility="collapsed")
-    s5_h = st.number_input("5M Swing High", value=0.0, format="%.2f", step=0.0, key="s5h")
-    s5_l = st.number_input("5M Swing Low", value=0.0, format="%.2f", step=0.0, key="s5l")
-    
-    # Structural Logic for 5M (MSS)
-    can_confirm_5m = False
-    if ltf_trend == "Bullish ⬆️" and curr_price > s5_h and s5_h > 0: can_confirm_5m = True
-    elif ltf_trend == "Bearish ⬇️" and curr_price < s5_l and s5_l > 0: can_confirm_5m = True
-    
-    bias_5m_ok = st.checkbox("5M MSS Confirmed", disabled=not can_confirm_5m, key="c5h")
-
-# Final Logic Check
-all_phases_ready = bias_4h_ok and bias_1h_ok and bias_5m_ok
+phase1_ready = render_tf_column(c4h, "⏳ 4H BIAS", "4h")
+phase2_ready = render_tf_column(c1h, "⏱️ 1H STRUCTURE", "1h")
+phase3_ready = render_tf_column(c5m, "⚡ 5M SHIFT", "5m")
 
 # ---------------- POI & EXECUTION ---------------- #
 st.markdown("---")
@@ -140,8 +127,9 @@ with col_poi:
     inside_zone = False
     if POI_DB:
         selected_poi = st.selectbox("Active POI", list(POI_DB.keys()))
+        check_price = st.number_input("Current Market Price", value=0.0, format="%.2f", step=0.0)
         target = POI_DB[selected_poi]
-        if target["low"] <= curr_price <= target["high"]:
+        if target["low"] <= check_price <= target["high"]:
             st.success("✅ AT POI")
             inside_zone = True
         else:
@@ -160,12 +148,15 @@ with col_exec:
             lot = current_risk_usd / (pips * 10) if pips > 0 else 0
             st.metric("Lot Size", round(lot, 2))
             
-            if all_phases_ready and inside_zone and news_ok:
-                st.success("🔥 ALL LEVELS CONFIRMED: EXECUTE")
+            # FINAL CHECK
+            if phase1_ready and phase2_ready and phase3_ready and inside_zone and news_ok:
+                st.success("🔥 ALL CONFLUENCES MET: EXECUTE")
             else:
-                st.error("🚫 DO NOT ENTER: Check Structural Breaks")
+                st.error("🚫 DO NOT ENTER: Check Structural Steps")
 
     if entry > 0 and sl > 0:
         diff = abs(entry - sl)
         is_buy = entry > sl
-        st.write(f"TP1 (1.5R): **{round(entry + (diff * 1.5 if is_buy else -diff * 1.5), 2)}** | TP2 (3.0R): **{round(entry + (diff * 3.0 if is_buy else -diff * 3.0), 2)}**")
+        tp1 = round(entry + (diff * 1.5 if is_buy else -diff * 1.5), 2)
+        tp2 = round(entry + (diff * 3.0 if is_buy else -diff * 3.0), 2)
+        st.write(f"**TP1 (1.5R):** {tp1}  |  **TP2 (3.0R):** {tp2}")
