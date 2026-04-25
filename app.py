@@ -82,27 +82,36 @@ st.subheader("⚡ 5M MICRO-CONFIRMATION")
 c5_1, c5_2, c5_3 = st.columns(3)
 
 with c5_1:
-    m5_trend = st.radio("5M Trend Selection", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="m5_t", disabled=not bias_15m_ok)
+    m5_trend = st.radio("5M Current Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="m5_t", disabled=not bias_15m_ok)
     m5_lock = not bias_15m_ok or m5_trend == "Select..."
 
 with c5_2:
     if m5_trend == "Bearish ⬇️":
-        label_break = "BOS Price (Break LL to Continue)"
-        label_rev = "Reversal Price (Break LH for MSS)"
+        label_bos = "BOS Price (LL to break)"
+        label_mss = "MSS Price (LH to break)"
     else:
-        label_break = "BOS Price (Break HH to Continue)"
-        label_rev = "Reversal Price (Break HL for MSS)"
+        label_bos = "BOS Price (HH to break)"
+        label_mss = "MSS Price (HL to break)"
         
-    m5_bos_p = st.number_input(label_break, value=0.0, format="%.2f", disabled=m5_lock)
-    m5_rev_p = st.number_input(label_rev, value=0.0, format="%.2f", disabled=m5_lock)
+    m5_bos_p = st.number_input(label_bos, value=0.0, format="%.2f", disabled=m5_lock)
+    m5_mss_p = st.number_input(label_mss, value=0.0, format="%.2f", disabled=m5_lock)
 
 with c5_3:
-    # Simpler Final Trigger
-    m5_trigger = st.checkbox("5M Confirmation Broken? (Trigger Phase 3)", disabled=m5_bos_p == 0)
+    st.write("**Confirmation Type**")
+    # THE TWO OPTIONS
+    m5_bos_ok = st.checkbox("BOS Confirmed (Trend Continues)", disabled=m5_bos_p == 0)
+    m5_mss_ok = st.checkbox("MSS Confirmed (Trend Reversal)", disabled=m5_mss_p == 0)
+    
+    # Combined logic for Phase 3 unlock
+    m5_confirmed = m5_bos_ok or m5_mss_ok
 
 # ---------------- PHASE 2 & 3 ---------------- #
 st.markdown("---")
-final_ready = m5_trigger and news_ok
+final_ready = m5_confirmed and news_ok
+
+if final_ready:
+    if m5_bos_ok: st.success("📈 TREND CONTINUATION LOCKED: BOS Confirmed.")
+    if m5_mss_ok: st.info("🎯 TREND REVERSAL LOCKED: MSS Confirmed.")
 
 col_poi, col_exec = st.columns([1, 2])
 
