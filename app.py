@@ -8,7 +8,7 @@ st.set_page_config(page_title="BlackArrowFX 4H/1H Engine", layout="wide")
 now = datetime.now()
 dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 
-st.title("🏹 BlackArrowFX: 4H/1H Execution Engine")
+st.title("🏹 BlackArrowFX: Multi-Timeframe Execution Engine")
 st.caption(f"Current Server Time: {dt_string}")
 st.markdown("---")
 
@@ -30,7 +30,6 @@ with st.sidebar:
         risk_pct = st.slider("Risk per Trade (%)", 0.25, 10.0, 5.0)
         current_risk_usd = st.session_state.balance * (risk_pct / 100)
     else:
-        # Changed to 0.0 step for easier manual key-in
         current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0, step=0.0)
 
     max_daily_risk_limit = st.session_state.balance * 0.10
@@ -53,7 +52,6 @@ with st.sidebar:
 
     win_disabled = st.session_state.trade_count >= 3
     with st.expander("✅ RECORD WIN", expanded=not win_disabled):
-        # Changed to 0.0 step for manual key-in
         manual_profit = st.number_input("Profit Made ($)", min_value=0.0, value=current_risk_usd * 2, step=0.0)
         if st.button("Add to Balance", disabled=win_disabled):
             st.session_state.balance += manual_profit
@@ -67,56 +65,64 @@ with st.sidebar:
 
 # ---------------- PHASE 0: HARD FILTERS ---------------- #
 st.header("PHASE 0: PRE-FLIGHT CHECK")
-col1, col2 = st.columns(2)
-with col1:
+col_p0_1, col_p0_2 = st.columns(2)
+with col_p0_1:
     trade_limit_ok = st.session_state.trade_count < 3
     st.checkbox("Daily Trade Limit (Max 3)", value=trade_limit_ok, disabled=True)
-with col2:
+with col_p0_2:
     st.checkbox("News Cleared", value=news_ok, disabled=True)
 
 if not trade_limit_ok or st.session_state.daily_loss_total >= max_daily_risk_limit:
     st.error("🛑 TRADING LOCKED: Daily limits reached.")
     st.stop()
 
-# ---------------- PHASE 1: 4H BIAS & SWING POINTS ---------------- #
+# ---------------- SIDE-BY-SIDE ANALYSIS (4H & 1H) ---------------- #
 st.markdown("---")
-st.header("PHASE 1: 4H DIRECTIONAL BIAS")
-col_bias1, col_bias2 = st.columns(2)
+col_4h, col_1h = st.columns(2)
 
-with col_bias1:
-    st.subheader("4H Market Structure")
-    htf_bias = st.radio("Current Trend", ["Bullish (HH/HL) ⬆️", "Bearish (LH/LL) ⬇️", "Ranging/Unclear ↔️"])
+with col_4h:
+    st.header("⏳ PHASE 1: 4H BIAS")
+    htf_bias = st.radio("4H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging ↔️"], key="4h_trend")
     
-    # KEY FIX: Step=0.0 removes the +/- buttons and allows direct typing
-    swing_h_val = st.number_input("Input 4H Swing High Price", value=0.0, format="%.2f", step=0.0)
-    swing_l_val = st.number_input("Input 4H Swing Low Price", value=0.0, format="%.2f", step=0.0)
+    s4_h = st.number_input("4H Swing High Price", value=0.0, format="%.2f", step=0.0, key="s4h")
+    s4_l = st.number_input("4H Swing Low Price", value=0.0, format="%.2f", step=0.0, key="s4l")
     
-    inputs_ready = swing_h_val > 0 and swing_l_val > 0
+    u4_ready = s4_h > 0 and s4_l > 0
+    bias_4h_ok = st.checkbox("4H Trend Confirmed", disabled=not u4_ready, key="c4h")
     
-    bias_confirmed = st.checkbox(
-        "4H Trend Confirmed", 
-        disabled=not inputs_ready,
-        help="Type in the High/Low prices to unlock."
-    )
+    liq_4h = st.toggle("4H Liquidity Taken", key="l4h")
     
-    if bias_confirmed and htf_bias != "Ranging/Unclear ↔️":
-        st.success("✅ 4H TREND VALIDATED")
-        trend_tick = True
+    if bias_4h_ok and htf_bias != "Ranging ↔️" and liq_4h:
+        st.success("✅ 4H BIAS VALID")
+        phase1_ready = True
     else:
-        st.warning("⏳ Enter Prices & Confirm Trend")
-        trend_tick = False
+        st.warning("⏳ Complete 4H Analysis")
+        phase1_ready = False
 
-with col_bias2:
-    st.subheader("Liquidity & Value")
-    liq_sweep = st.toggle("Liquidity Taken (PDH/PDL or Equal Levels)")
-    premium_discount = st.radio("Price Location", ["Discount (Buy Zone)", "Premium (Sell Zone)", "Equilibrium (No Trade)"])
+with col_1h:
+    st.header("⏱️ PHASE 2: 1H STRUCTURE")
+    itf_trend = st.radio("1H Structure", ["Bullish ⬆️", "Bearish ⬇️", "Ranging ↔️"], key="1h_trend")
+    
+    s1_h = st.number_input("1H Swing High Price", value=0.0, format="%.2f", step=0.0, key="s1h")
+    s1_l = st.number_input("1H Swing Low Price", value=0.0, format="%.2f", step=0.0, key="s1l")
+    
+    u1_ready = s1_h > 0 and s1_l > 0
+    bias_1h_ok = st.checkbox("1H Structure Confirmed", disabled=not u1_ready, key="c1h")
+    
+    # Premium/Discount check for 1H
+    p_d = st.radio("Price Value (1H Range)", ["Discount (Buy)", "Premium (Sell)", "Equilibrium"], key="pd")
 
-bias_ok = trend_tick and liq_sweep
+    if bias_1h_ok and itf_trend != "Ranging ↔️":
+        st.success("✅ 1H STRUCTURE VALID")
+        phase2_ready = True
+    else:
+        st.warning("⏳ Complete 1H Analysis")
+        phase2_ready = False
 
-# ---------------- PHASE 2: 1H POI TRADING PLAN ---------------- #
+# ---------------- POI SELECTION ---------------- #
 st.markdown("---")
-st.header("PHASE 2: 1H POI TRADING PLAN")
-raw_text = st.text_area("Paste 1H POI Zones", height=100, placeholder="Example: 1H Order Block $2340 - $2345")
+st.header("📋 POI TRADING PLAN")
+raw_text = st.text_area("Paste 1H POI Zones", height=80, placeholder="Example: 1H Order Block $2340 - $2345")
 
 POI_DB = {}
 if raw_text:
@@ -131,34 +137,32 @@ if raw_text:
 
 inside_zone = False
 if POI_DB:
-    st.success(f"Parsed {len(POI_DB)} Zones")
     selected_poi = st.selectbox("Select Active 1H POI", list(POI_DB.keys()))
-    # Step=0.0 for manual typing
     price = st.number_input("Current Market Price", value=0.0, format="%.2f", step=0.0)
     target = POI_DB[selected_poi]
     if target["low"] <= price <= target["high"]:
-        st.success("✅ PRICE AT 1H POI")
+        st.success("✅ PRICE AT POI")
         inside_zone = True
     else:
-        st.error("❌ PRICE OUTSIDE 1H POI")
+        st.error("❌ PRICE OUTSIDE POI")
 
-# ---------------- PHASE 3: LTF TRIGGER (1M/5M) ---------------- #
+# ---------------- LTF TRIGGER ---------------- #
 st.markdown("---")
-st.header("PHASE 3: LTF ENTRY TRIGGER")
-c_mss = st.checkbox("MSS / CHoCH (1M/5M Shift)")
-c_fvg = st.toggle("FVG/OB Refinement Present")
+st.header("⚡ PHASE 3: LTF ENTRY (1M/5M)")
+c_mss = st.checkbox("MSS / CHoCH Confirmed")
+c_fvg = st.toggle("FVG/OB Present for Entry")
 
-trigger_ok = c_mss and c_fvg and inside_zone and bias_ok
+# All confluences check
+all_confluences = phase1_ready and phase2_ready and inside_zone and c_mss and c_fvg
 
-# ---------------- PHASE 4: EXECUTION & POSITION ---------------- #
+# ---------------- POSITION CALCULATOR ---------------- #
 st.markdown("---")
-st.header("PHASE 4: EXECUTION ENGINE")
+st.header("🚀 PHASE 4: EXECUTION ENGINE")
 calc_c1, calc_c2, calc_c3 = st.columns(3)
 
 with calc_c1:
-    # Step=0.0 for manual typing
-    entry = st.number_input("Entry Price", value=0.0, format="%.2f", step=0.0)
-    sl = st.number_input("Stop Loss", value=0.0, format="%.2f", step=0.0)
+    entry = st.number_input("Entry Price", value=0.0, format="%.2f", step=0.0, key="entry")
+    sl = st.number_input("Stop Loss", value=0.0, format="%.2f", step=0.0, key="sl")
 
 with calc_c2:
     if entry > 0 and sl > 0:
@@ -166,10 +170,10 @@ with calc_c2:
         lot_size = current_risk_usd / (pips * 10) if pips > 0 else 0
         st.metric("Lot Size", round(lot_size, 2))
         
-        if trigger_ok and news_ok:
-            st.success("🚀 EXECUTE TRADE")
+        if all_confluences and news_ok:
+            st.success("🔥 ALL CONFLUENCES MET: EXECUTE")
         else:
-            st.error("🚫 DO NOT ENTER")
+            st.error("🚫 DO NOT ENTER: Missing Confluences")
 
 with calc_c3:
     if entry > 0 and sl > 0:
