@@ -63,54 +63,38 @@ with st.sidebar:
         st.session_state.daily_loss_total = 0.0
         st.rerun()
 
-# ---------------- PHASE 0: HARD FILTERS ---------------- #
-st.header("PHASE 0: PRE-FLIGHT CHECK")
-col_p0_1, col_p0_2 = st.columns(2)
-with col_p0_1:
-    trade_limit_ok = st.session_state.trade_count < 3
-    st.checkbox("Daily Trade Limit (Max 3)", value=trade_limit_ok, disabled=True)
-with col_p0_2:
-    st.checkbox("News Cleared", value=news_ok, disabled=True)
-
-if not trade_limit_ok or st.session_state.daily_loss_total >= max_daily_risk_limit:
-    st.error("🛑 TRADING LOCKED: Limits reached.")
-    st.stop()
-
-# ---------------- TRIPLE TIMEFRAME ANALYSIS (ALIGNED) ---------------- #
-st.markdown("---")
+# ---------------- TRIPLE TIMEFRAME ANALYSIS ---------------- #
+st.header("PHASE 1: MARKET STRUCTURE")
 c4h, c1h, c5m = st.columns(3)
 
-# ROW 1: HEADERS
-c4h.subheader("⏳ 4H BIAS")
-c1h.subheader("⏱️ 1H STRUCTURE")
-c5m.subheader("⚡ 5M SHIFT")
+def process_tf(col, tf_name, key):
+    with col:
+        st.subheader(f"⏳ {tf_name}")
+        bias = st.radio(f"{tf_name} Bias", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key=f"bias_{key}")
+        
+        # Confirmation Logic
+        is_confirmed = st.checkbox(f"{tf_name} Confirmed", key=f"conf_{key}")
+        
+        tf_ready = False
+        if is_confirmed and bias != "Ranging":
+            # Dynamic Labeling based on Bias
+            if bias == "Bullish ⬆️":
+                label_high, label_low = "BOS (Swing High)", "MSS (Swing Low)"
+            else:
+                label_high, label_low = "MSS (Swing High)", "BOS (Swing Low)"
+            
+            struct_choice = st.radio("Structure Broken:", [label_high, label_low], key=f"struct_{key}")
+            price_input = st.number_input(f"Confirm {struct_choice} Price", step=0.0, format="%.2f", key=f"price_{key}")
+            
+            if price_input > 0:
+                tf_ready = True
+                st.success(f"{tf_name} Alignment: OK")
+        
+        return tf_ready
 
-# ROW 2: TREND SELECTION
-htf_bias = c4h.radio("4H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", label_visibility="collapsed")
-itf_trend = c1h.radio("1H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", label_visibility="collapsed")
-ltf_trend = c5m.radio("5M Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="5m_t", label_visibility="collapsed")
-
-st.markdown(" ") # Spacer
-
-# ROW 3: SWING HIGHS
-s4_h = c4h.number_input("4H Swing High", value=0.0, format="%.2f", step=0.0, key="s4h")
-s1_h = c1h.number_input("1H Swing High", value=0.0, format="%.2f", step=0.0, key="s1h")
-s5_h = c5m.number_input("5M Swing High", value=0.0, format="%.2f", step=0.0, key="s5h")
-
-# ROW 4: SWING LOWS
-s4_l = c4h.number_input("4H Swing Low", value=0.0, format="%.2f", step=0.0, key="s4l")
-s1_l = c1h.number_input("1H Swing Low", value=0.0, format="%.2f", step=0.0, key="s1l")
-s5_l = c5m.number_input("5M Swing Low", value=0.0, format="%.2f", step=0.0, key="s5l")
-
-# ROW 5: CONFIRMATION CHECKBOXES
-bias_4h_ok = c4h.checkbox("4H Confirmed", disabled=not (s4_h > 0 and s4_l > 0), key="c4h")
-bias_1h_ok = c1h.checkbox("1H Confirmed", disabled=not (s1_h > 0 and s1_l > 0), key="c1h")
-bias_5m_ok = c5m.checkbox("5M Confirmed", disabled=not (s5_h > 0 and s5_l > 0), key="c5h")
-
-# Logic Check for Three Phases
-phase1_ready = bias_4h_ok and htf_bias != "Ranging"
-phase2_ready = bias_1h_ok and itf_trend != "Ranging"
-phase3_ready = bias_5m_ok and ltf_trend != "Ranging"
+phase1_ready = process_tf(c4h, "4H", "4h")
+phase2_ready = process_tf(c1h, "1H", "1h")
+phase3_ready = process_tf(c5m, "5M", "5m")
 
 # ---------------- POI & EXECUTION ---------------- #
 st.markdown("---")
@@ -133,9 +117,9 @@ with col_poi:
     inside_zone = False
     if POI_DB:
         selected_poi = st.selectbox("Active POI", list(POI_DB.keys()))
-        curr_price = st.number_input("Market Price", value=0.0, format="%.2f", step=0.0)
+        curr_market_price = st.number_input("Market Price", value=0.0, format="%.2f", step=0.0)
         target = POI_DB[selected_poi]
-        if target["low"] <= curr_price <= target["high"]:
+        if target["low"] <= curr_market_price <= target["high"]:
             st.success("✅ AT POI")
             inside_zone = True
         else:
@@ -154,11 +138,11 @@ with col_exec:
             lot = current_risk_usd / (pips * 10) if pips > 0 else 0
             st.metric("Lot Size", round(lot, 2))
             
-            # FINAL CHECK: Trends + POI + News
+            # THE TICK CHECK: All TFs confirmed + POI + News
             if phase1_ready and phase2_ready and phase3_ready and inside_zone and news_ok:
-                st.success("🔥 ALL TRENDS ALIGNED: EXECUTE")
+                st.success("🔥 ALL CONFLUENCES MET: EXECUTE")
             else:
-                st.error("🚫 DO NOT ENTER: Check Alignment")
+                st.error("🚫 DO NOT ENTER: Check Structural Confirmation")
 
     if entry > 0 and sl > 0:
         diff = abs(entry - sl)
