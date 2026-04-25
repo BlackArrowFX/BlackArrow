@@ -37,18 +37,15 @@ with st.sidebar:
     news_ok = st.toggle("No High Impact News Active", value=False) 
     
     if not news_ok:
-        st.error("🚨 SYSTEM LOCKED: Confirm no news to proceed.")
+        st.error("🚨 SYSTEM LOCKED: Confirm no news.")
     else:
-        st.success("✅ News Cleared: System Unlocked")
+        st.success("✅ News Cleared")
 
     # ---------------- 3. THE JOURNAL COMPONENT ---------------- #
     st.markdown("---")
     st.header("📊 Daily Journal")
     st.write(f"Trades Taken: **{st.session_state.trades_taken} / 3**")
     limit_reached = st.session_state.trades_taken >= 3
-
-    if limit_reached:
-        st.warning("⚠️ Daily trade limit reached.")
 
     if st.button("❌ RECORD LOSS", use_container_width=True, disabled=limit_reached):
         st.session_state.balance -= current_risk_usd 
@@ -74,7 +71,6 @@ st.markdown("---")
 # ---------------- QUAD TIMEFRAME ANALYSIS ---------------- #
 c4h, c1h, c30m, c15m = st.columns(4)
 
-# --- Timeframe Logic remains unchanged ---
 with c4h:
     st.subheader("⏳ 4H BIAS")
     htf_bias = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", disabled=not news_ok)
@@ -130,43 +126,42 @@ with c5_3:
     st.write("**Confirmation Type**")
     m5_bos_ok = st.checkbox("BOS Confirmed", disabled=m5_bos_p == 0)
     m5_mss_ok = st.checkbox("MSS Confirmed", disabled=m5_mss_p == 0)
-    m5_confirmed = m5_bos_ok or m5_mss_ok
 
 # ---------------- PHASE 2 & 3 ---------------- #
 st.markdown("---")
-phase2_ready = bias_15m_ok and news_ok
-phase3_ready = m5_confirmed and news_ok
+# Unlock Phase 2 & 3 based on 15M and News
+system_unlocked = bias_15m_ok and news_ok
 
 col_poi, col_exec = st.columns([1, 2])
 
 with col_poi:
     st.header("📋 PHASE 2: POI")
-    poi_type = st.selectbox("Trading Zone", ["Select...", "Swing High", "Swing Low", "Supply Zone", "Demand Zone", "Order Block", "FVG"], disabled=not phase2_ready)
-    zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f", disabled=not phase2_ready)
+    poi_type = st.selectbox("Trading Zone", ["Select...", "Swing High", "Swing Low", "Supply Zone", "Demand Zone", "Order Block", "FVG"], disabled=not system_unlocked)
+    zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f", disabled=not system_unlocked)
     
-    # MOVED POSITION DIRECTION HERE
-    trade_dir = st.radio("Position Direction", ["LONG 🔵", "SHORT 🔴"], horizontal=True, disabled=not phase2_ready)
+    # NEUTRAL DIRECTION ADDED
+    trade_dir = st.radio("Position Direction", ["Select...", "LONG 🔵", "SHORT 🔴"], horizontal=True, disabled=not system_unlocked)
 
 with col_exec:
     st.header("🚀 PHASE 3: EXECUTE")
     
     pip_factor = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
     
-    # Auto SL Calculation
+    # Auto SL Calculation - Only runs if direction is NOT "Select..."
     calc_sl = 0.0
-    if zone_price > 0:
+    if zone_price > 0 and trade_dir != "Select...":
         calc_sl = zone_price - (15 * pip_factor) if trade_dir == "LONG 🔵" else zone_price + (15 * pip_factor)
 
-    sl_val = st.number_input("Stop Loss (Auto-calculated)", value=calc_sl, format="%.2f", disabled=not phase3_ready)
-    entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f", disabled=not phase3_ready)
+    sl_val = st.number_input("Stop Loss (15 Pips)", value=calc_sl, format="%.2f", disabled=not system_unlocked)
+    entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f", disabled=not system_unlocked)
     
-    if entry_val > 0 and sl_val > 0:
+    if entry_val > 0 and sl_val > 0 and trade_dir != "Select...":
         pips_dist = abs(entry_val - sl_val) / pip_factor
         if pips_dist > 0:
             lot_size = (current_risk_usd / pips_dist) / 10
             st.metric("Calculated Lot Size", f"{round(lot_size, 2)}")
-            st.write(f"📏 Dist: {round(pips_dist, 1)} pips | 💵 Total Risk: ${round(current_risk_usd, 2)}")
+            st.write(f"📏 Dist: {round(pips_dist, 1)} pips | 💵 Risk: ${round(current_risk_usd, 2)}")
             
-            if phase3_ready:
-                if m5_bos_ok: st.success("📈 TREND CONTINUATION LOCKED: BOS Confirmed.")
-                if m5_mss_ok: st.info("🎯 TREND REVERSAL LOCKED: MSS Confirmed.")
+            # Show micro-conf status if available
+            if m5_bos_ok: st.success("📈 BOS Confirmed")
+            if m5_mss_ok: st.info("🎯 MSS Confirmed")
