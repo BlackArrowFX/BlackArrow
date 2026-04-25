@@ -22,7 +22,14 @@ with st.sidebar:
     st.markdown("---")
     st.header("💰 Risk Engine")
     
-    st.metric("Current Balance", f"${round(st.session_state.balance, 2)}")
+    # --- UPDATED: MANUAL BALANCE INPUT ---
+    # This allows you to type in a new balance for withdrawals/deposits
+    st.session_state.balance = st.number_input(
+        "Current Balance ($)", 
+        value=float(st.session_state.balance), 
+        step=10.0, 
+        format="%.2f"
+    )
     
     risk_method = st.radio("Risk Method", ["Percentage (%)", "Fixed Amount ($)"])
     if risk_method == "Percentage (%)":
@@ -129,7 +136,6 @@ with c5_3:
 
 # ---------------- PHASE 2 & 3 ---------------- #
 st.markdown("---")
-# Unlock Phase 2 & 3 based on 15M and News
 system_unlocked = bias_15m_ok and news_ok
 
 col_poi, col_exec = st.columns([1, 2])
@@ -138,16 +144,12 @@ with col_poi:
     st.header("📋 PHASE 2: POI")
     poi_type = st.selectbox("Trading Zone", ["Select...", "Swing High", "Swing Low", "Supply Zone", "Demand Zone", "Order Block", "FVG"], disabled=not system_unlocked)
     zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f", disabled=not system_unlocked)
-    
-    # NEUTRAL DIRECTION ADDED
     trade_dir = st.radio("Position Direction", ["Select...", "LONG 🔵", "SHORT 🔴"], horizontal=True, disabled=not system_unlocked)
 
 with col_exec:
     st.header("🚀 PHASE 3: EXECUTE")
-    
     pip_factor = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
     
-    # Auto SL Calculation - Only runs if direction is NOT "Select..."
     calc_sl = 0.0
     if zone_price > 0 and trade_dir != "Select...":
         calc_sl = zone_price - (15 * pip_factor) if trade_dir == "LONG 🔵" else zone_price + (15 * pip_factor)
@@ -162,6 +164,5 @@ with col_exec:
             st.metric("Calculated Lot Size", f"{round(lot_size, 2)}")
             st.write(f"📏 Dist: {round(pips_dist, 1)} pips | 💵 Risk: ${round(current_risk_usd, 2)}")
             
-            # Show micro-conf status if available
             if m5_bos_ok: st.success("📈 BOS Confirmed")
             if m5_mss_ok: st.info("🎯 MSS Confirmed")
