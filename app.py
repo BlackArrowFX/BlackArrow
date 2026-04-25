@@ -7,7 +7,7 @@ st.set_page_config(page_title="BlackArrowFX Precision Engine", layout="wide")
 now = datetime.now()
 dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 
-# ---------------- SIDEBAR: RISK & ASSET ---------------- #
+# ---------------- SIDEBAR: RISK & SYSTEM ---------------- #
 with st.sidebar:
     st.header("⚙️ System Config")
     asset_type = st.selectbox("Select Asset Class", ["METAL (Gold/Silver)", "FOREX", "INDICES / CRYPTO"])
@@ -29,75 +29,116 @@ with st.sidebar:
 
     st.header("🌍 News Filter")
     news_ok = st.toggle("No High Impact News", value=False)
-    
     if not news_ok:
         st.error("🚨 SYSTEM LOCKED: News must be cleared.")
+
+# ---------------- MAIN INTERFACE ---------------- #
+st.title(f"🏹 BlackArrowFX: {symbol} Precision Engine")
+st.caption(f"Asset: {symbol} | Mode: {asset_type} | Server Time: {dt_string}")
+st.markdown("---")
 
 # ---------------- QUAD TIMEFRAME ANALYSIS ---------------- #
 c4h, c1h, c30m, c15m = st.columns(4)
 
 # --- 4H BIAS ---
-c4h.subheader("⏳ 4H BIAS")
-htf_bias = c4h.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", disabled=not news_ok)
-h_input_lock = not news_ok or htf_bias == "Select..."
-s4_h = c4h.number_input("Swing High", value=0.0, format="%.2f", key="s4h", disabled=h_input_lock)
-s4_l = c4h.number_input("Swing Low", value=0.0, format="%.2f", key="s4l", disabled=h_input_lock)
-bias_4h_ok = c4h.checkbox("4H Confirmed", key="4h_c", disabled=h_input_lock or not (s4_h > 0 and s4_l > 0))
+with c4h:
+    st.subheader("⏳ 4H BIAS")
+    htf_bias = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", disabled=not news_ok)
+    h_lock = not news_ok or htf_bias == "Select..."
+    s4_h = st.number_input("Swing High", value=0.0, format="%.2f", key="s4h", disabled=h_lock)
+    s4_l = st.number_input("Swing Low", value=0.0, format="%.2f", key="s4l", disabled=h_lock)
+    bias_4h_ok = st.checkbox("4H Confirmed", key="4h_c", disabled=h_lock or not (s4_h > 0 and s4_l > 0))
 
 # --- 1H STRUC ---
-c1h.subheader("⏱️ 1H STRUC")
-itf_trend = c1h.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", disabled=not news_ok or not bias_4h_ok)
-i_input_lock = not news_ok or not bias_4h_ok or itf_trend == "Select..."
-s1_h = c1h.number_input("Swing High", value=0.0, format="%.2f", key="s1h", disabled=i_input_lock)
-s1_l = c1h.number_input("Swing Low", value=0.0, format="%.2f", key="s1l", disabled=i_input_lock)
-bias_1h_ok = c1h.checkbox("1H Confirmed", key="1h_c", disabled=i_input_lock or not (s1_h > 0 and s1_l > 0))
+with c1h:
+    st.subheader("⏱️ 1H STRUC")
+    itf_trend = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", disabled=not bias_4h_ok)
+    i_lock = not bias_4h_ok or itf_trend == "Select..."
+    s1_h = st.number_input("1H High", value=0.0, format="%.2f", key="s1h", disabled=i_lock)
+    s1_l = st.number_input("1H Low", value=0.0, format="%.2f", key="s1l", disabled=i_lock)
+    bias_1h_ok = st.checkbox("1H Confirmed", key="1h_c", disabled=i_lock or not (s1_h > 0 and s1_l > 0))
 
 # --- 30M SHIFT ---
-c30m.subheader("⚡ 30M SHIFT")
-t30_trend = c30m.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="30m_t", disabled=not news_ok or not bias_1h_ok)
-m30_input_lock = not news_ok or not bias_1h_ok or t30_trend == "Select..."
-s30_h = c30m.number_input("Swing High", value=0.0, format="%.2f", key="s30h", disabled=m30_input_lock)
-s30_l = c30m.number_input("Swing Low", value=0.0, format="%.2f", key="s30l", disabled=m30_input_lock)
-bias_30m_ok = c30m.checkbox("30M Confirmed", key="30m_c", disabled=m30_input_lock or not (s30_h > 0 and s30_l > 0))
+with c30m:
+    st.subheader("⚡ 30M SHIFT")
+    t30_trend = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="30m_t", disabled=not bias_1h_ok)
+    m30_lock = not bias_1h_ok or t30_trend == "Select..."
+    s30_h = st.number_input("30M High", value=0.0, format="%.2f", key="s30h", disabled=m30_lock)
+    s30_l = st.number_input("30M Low", value=0.0, format="%.2f", key="s30l", disabled=m30_lock)
+    bias_30m_ok = st.checkbox("30M Confirmed", key="30m_c", disabled=m30_lock or not (s30_h > 0 and s30_l > 0))
 
 # --- 15M ENTRY ---
-c15m.subheader("🎯 15M ENTRY")
-t15_trend = c15m.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="15m_t", disabled=not news_ok or not bias_30m_ok)
-m15_input_lock = not news_ok or not bias_30m_ok or t15_trend == "Select..."
-s15_h = c15m.number_input("Swing High", value=0.0, format="%.2f", key="s15h", disabled=m15_input_lock)
-s15_l = c15m.number_input("Swing Low", value=0.0, format="%.2f", key="s15l", disabled=m15_input_lock)
-bias_15m_ok = c15m.checkbox("15M Confirmed", key="15m_c", disabled=m15_input_lock or not (s15_h > 0 and s15_l > 0))
+with c15m:
+    st.subheader("🎯 15M ENTRY")
+    t15_trend = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="15m_t", disabled=not bias_30m_ok)
+    m15_lock = not bias_30m_ok or t15_trend == "Select..."
+    s15_h = st.number_input("15M High", value=0.0, format="%.2f", key="s15h", disabled=m15_lock)
+    s15_l = st.number_input("15M Low", value=0.0, format="%.2f", key="s15l", disabled=m15_lock)
+    bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15_h > 0 and s15_l > 0))
 
-# ---------------- PHASE 2 & 3 ---------------- #
+# ---------------- 5M MICRO-CONFIRMATION (OPTIONAL INFO) ---------------- #
 st.markdown("---")
-ready_to_trade = news_ok and bias_15m_ok
+st.subheader("⚡ 5M MICRO-CONFIRMATION (Optional)")
+c5_1, c5_2, c5_3 = st.columns(3)
+
+with c5_1:
+    m5_trend = st.radio("5M Current Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="m5_t", disabled=not bias_15m_ok)
+    m5_lock = not bias_15m_ok or m5_trend == "Select..."
+
+with c5_2:
+    if m5_trend == "Bearish ⬇️":
+        label_bos = "BOS Price (LL to break)"
+        label_mss = "MSS Price (LH to break)"
+    else:
+        label_bos = "BOS Price (HH to break)"
+        label_mss = "MSS Price (HL to break)"
+        
+    m5_bos_p = st.number_input(label_bos, value=0.0, format="%.2f", disabled=m5_lock)
+    m5_mss_p = st.number_input(label_mss, value=0.0, format="%.2f", disabled=m5_lock)
+
+with c5_3:
+    st.write("**Confirmation Type**")
+    m5_bos_ok = st.checkbox("BOS Confirmed", disabled=m5_bos_p == 0)
+    m5_mss_ok = st.checkbox("MSS Confirmed", disabled=m5_mss_p == 0)
+    m5_confirmed = m5_bos_ok or m5_mss_ok
+
+# ---------------- PHASE 2 & 3: EXECUTION ---------------- #
+st.markdown("---")
+
+# Main unlock logic: Phase 2/3 only require 15M Confirmed and News Filter cleared
+phase2_ready = bias_15m_ok and news_ok
+
+# Visual feedback for 5M status
+if m5_confirmed:
+    if m5_bos_ok: st.success("📈 5M TREND CONTINUATION: BOS Confirmed.")
+    if m5_mss_ok: st.info("🎯 5M TREND REVERSAL: MSS Confirmed.")
+elif phase2_ready:
+    st.warning("ℹ️ 5M Confirmation not set. Proceeding based on 15M Bias.")
 
 col_poi, col_exec = st.columns([1, 2])
+
 with col_poi:
     st.header("📋 PHASE 2: POI")
-    poi_type = st.selectbox("Where am I trading?", ["Select POI...", "Swing High", "Swing Low", "Supply Zone", "Demand Zone", "Order Block", "FVG"], disabled=not ready_to_trade)
-    zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f", disabled=not ready_to_trade)
+    poi_type = st.selectbox("Trading Zone", ["Select...", "Swing High", "Swing Low", "Supply Zone", "Demand Zone", "Order Block", "FVG"], disabled=not phase2_ready)
+    zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f", disabled=not phase2_ready)
 
 with col_exec:
     st.header("🚀 PHASE 3: EXECUTE")
+    trade_dir = st.radio("Position Direction", ["LONG 🔵", "SHORT 🔴"], horizontal=True, disabled=not phase2_ready)
     
-    # 1. Pips Factor Setup
     pip_factor = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
     
-    # 2. Auto SL Logic restored
-    calculated_sl = 0.0
+    # Auto SL (15 pips)
+    calc_sl = 0.0
     if zone_price > 0:
-        is_short_poi = any(x in poi_type for x in ["High", "Supply"])
-        calculated_sl = zone_price + (15 * pip_factor) if is_short_poi else zone_price - (15 * pip_factor)
+        calc_sl = zone_price - (15 * pip_factor) if trade_dir == "LONG 🔵" else zone_price + (15 * pip_factor)
 
-    # 3. Restored SL and Entry Inputs
-    sl = st.number_input("Stop Loss (Auto 15 pips)", value=calculated_sl, format="%.2f", disabled=not (zone_price > 0))
-    entry = st.number_input("Entry Price (Manual)", value=0.0, format="%.2f", disabled=not (zone_price > 0))
+    sl_val = st.number_input("Stop Loss", value=calc_sl, format="%.2f", disabled=not phase2_ready)
+    entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f", disabled=not phase2_ready)
     
-    # 4. Lot Size calculation
-    if entry > 0 and sl > 0:
-        pips_diff = abs(entry - sl) / pip_factor
-        if pips_diff > 0:
-            lot = (current_risk_usd / pips_diff) / 10 # Standard Lot formula
-            st.metric("Calculated Lot Size", f"{round(lot, 2)}")
-            st.caption(f"Risk Distance: {round(pips_diff, 1)} pips | Risk Amount: ${round(current_risk_usd, 2)}")
+    if entry_val > 0 and sl_val > 0:
+        pips_dist = abs(entry_val - sl_val) / pip_factor
+        if pips_dist > 0:
+            lot_size = (current_risk_usd / pips_dist) / 10
+            st.metric("Calculated Lot Size", f"{round(lot_size, 2)}")
+            st.write(f"📏 Dist: {round(pips_dist, 1)} pips | 💵 Total Risk: ${round(current_risk_usd, 2)}")
