@@ -11,13 +11,13 @@ dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 with st.sidebar:
     st.header("⚙️ System Config")
     
-    # 1. ASSET CLASS AT THE TOP
+    # ASSET CLASS
     asset_type = st.selectbox(
         "Select Asset Class", 
         ["METAL (Gold/Silver)", "FOREX", "INDICES / CRYPTO"]
     )
     
-    # 2. INSTRUMENT BELOW ASSET CLASS
+    # INSTRUMENT
     symbol = st.text_input("Enter Instrument", value="XAUUSD").upper()
     
     st.markdown("---")
@@ -35,7 +35,11 @@ with st.sidebar:
         current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
 
     st.header("🌍 News Filter")
-    news_ok = st.toggle("No High Impact News")
+    # AMENDED: value=False sets the default to TURNED OFF
+    news_ok = st.toggle("No High Impact News", value=False)
+    
+    if not news_ok:
+        st.warning("⚠️ Action Blocked: Confirm news is clear to unlock system.")
 
     if "trade_count" not in st.session_state:
         st.session_state.trade_count = 0
@@ -97,21 +101,18 @@ with col_poi:
 with col_exec:
     st.header(f"🚀 PHASE 3: EXECUTE")
     
-    # Pip Calculation Logic
     if asset_type == "METAL (Gold/Silver)":
-        pip_factor = 0.1  # 15 pips = 1.50
+        pip_factor = 0.1 
     elif asset_type == "FOREX":
         pip_factor = 0.0001
     else:
-        pip_factor = 1.0  # US30/NAS100
+        pip_factor = 1.0 
         
-    # Auto SL Calculation
     calculated_sl = 0.0
     if zone_price > 0:
         is_short_poi = any(x in poi_type for x in ["High", "Supply"])
         calculated_sl = zone_price + (15 * pip_factor) if is_short_poi else zone_price - (15 * pip_factor)
 
-    # Reordered Execution Inputs
     sl = st.number_input("Stop Loss (Auto)", value=calculated_sl, format="%.2f", disabled=not (zone_price > 0))
     entry = st.number_input("Entry Price (Manual)", value=0.0, format="%.2f", disabled=not (zone_price > 0))
     
@@ -125,4 +126,4 @@ with col_exec:
 if bias_4h_ok and bias_1h_ok and bias_5m_ok and news_ok:
     st.success(f"🔥 {symbol} ALIGNED")
 else:
-    st.info("Ensure all timeframes are confirmed and news is cleared.")
+    st.info("System Locked: Check news and follow timeframe confirmation (4H -> 1H -> 5M).")
