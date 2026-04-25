@@ -78,7 +78,6 @@ if not trade_limit_ok or st.session_state.daily_loss_total >= max_daily_risk_lim
 
 # ---------------- TRIPLE TIMEFRAME ANALYSIS (ALIGNED) ---------------- #
 st.markdown("---")
-# Defining columns for the Triple Timeframe View
 c4h, c1h, c5m = st.columns(3)
 
 # ROW 1: HEADERS
@@ -108,17 +107,10 @@ bias_4h_ok = c4h.checkbox("4H Confirmed", disabled=not (s4_h > 0 and s4_l > 0), 
 bias_1h_ok = c1h.checkbox("1H Confirmed", disabled=not (s1_h > 0 and s1_l > 0), key="c1h")
 bias_5m_ok = c5m.checkbox("5M Confirmed", disabled=not (s5_h > 0 and s5_l > 0), key="c5h")
 
-# ROW 6: SPECIFIC CONFLUENCES
-with c4h: liq_4h = st.toggle("4H Liquidity Taken", key="l4h")
-with c1h: p_d = st.radio("Value Zone", ["Discount", "Premium", "Equilibrium"], key="pd")
-with c5m: 
-    c_mss = st.checkbox("MSS / CHoCH", key="mss")
-    c_fvg = st.toggle("FVG/OB Entry", key="fvg")
-
-# LOGIC GATES
-phase1_ready = bias_4h_ok and htf_bias != "Ranging" and liq_4h
+# Logic Check for Three Phases
+phase1_ready = bias_4h_ok and htf_bias != "Ranging"
 phase2_ready = bias_1h_ok and itf_trend != "Ranging"
-phase3_ready = bias_5m_ok and c_mss and c_fvg
+phase3_ready = bias_5m_ok and ltf_trend != "Ranging"
 
 # ---------------- POI & EXECUTION ---------------- #
 st.markdown("---")
@@ -162,11 +154,11 @@ with col_exec:
             lot = current_risk_usd / (pips * 10) if pips > 0 else 0
             st.metric("Lot Size", round(lot, 2))
             
-            # FINAL CHECK
+            # FINAL CHECK: Trends + POI + News
             if phase1_ready and phase2_ready and phase3_ready and inside_zone and news_ok:
-                st.success("🔥 ALL CONFLUENCES MET: EXECUTE")
+                st.success("🔥 ALL TRENDS ALIGNED: EXECUTE")
             else:
-                st.error("🚫 DO NOT ENTER: Missing Confluences")
+                st.error("🚫 DO NOT ENTER: Check Alignment")
 
     if entry > 0 and sl > 0:
         diff = abs(entry - sl)
