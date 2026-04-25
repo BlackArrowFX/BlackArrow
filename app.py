@@ -28,7 +28,6 @@ with st.sidebar:
         current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
 
     st.header("🌍 News Filter")
-    # MASTER LOCK
     news_ok = st.toggle("No High Impact News", value=False)
     if not news_ok:
         st.error("🚨 SYSTEM LOCKED: News must be cleared.")
@@ -79,7 +78,7 @@ with c15m:
 
 # ---------------- 5M MICRO-CONFIRMATION ---------------- #
 st.markdown("---")
-st.subheader("⚡ 5M MICRO-CONFIRMATION (Execution Trigger)")
+st.subheader("⚡ 5M MICRO-CONFIRMATION")
 c5_1, c5_2, c5_3 = st.columns(3)
 
 with c5_1:
@@ -88,23 +87,21 @@ with c5_1:
 
 with c5_2:
     if m5_trend == "Bearish ⬇️":
-        label_break = "BOS Price (LL to break)"
-        label_rev = "Reversal Price (LH to break)"
+        label_break = "BOS Price (Break LL to Continue)"
+        label_rev = "Reversal Price (Break LH for MSS)"
     else:
-        label_break = "BOS Price (HH to break)"
-        label_rev = "Reversal Price (HL to break)"
+        label_break = "BOS Price (Break HH to Continue)"
+        label_rev = "Reversal Price (Break HL for MSS)"
         
     m5_bos_p = st.number_input(label_break, value=0.0, format="%.2f", disabled=m5_lock)
     m5_rev_p = st.number_input(label_rev, value=0.0, format="%.2f", disabled=m5_lock)
 
 with c5_3:
-    m5_break_ok = st.checkbox("Structure Broken? (BOS/MSS)", disabled=m5_bos_p == 0)
-    m5_fvg_ok = st.checkbox("FVG / Displacement Created?", disabled=not m5_break_ok)
-    m5_trigger = st.checkbox("Price Returned to Entry?", disabled=not m5_fvg_ok)
+    # Simpler Final Trigger
+    m5_trigger = st.checkbox("5M Confirmation Broken? (Trigger Phase 3)", disabled=m5_bos_p == 0)
 
 # ---------------- PHASE 2 & 3 ---------------- #
 st.markdown("---")
-# Only allow execution if 5M sequence is completed
 final_ready = m5_trigger and news_ok
 
 col_poi, col_exec = st.columns([1, 2])
@@ -134,6 +131,3 @@ with col_exec:
             lot_size = (current_risk_usd / pips_dist) / 10
             st.metric("Calculated Lot Size", f"{round(lot_size, 2)}")
             st.write(f"📏 Dist: {round(pips_dist, 1)} pips | 💵 Total Risk: ${round(current_risk_usd, 2)}")
-            
-            if st.button("LOG TRADE TO JOURNAL", use_container_width=True):
-                st.success(f"Trade Logged: {symbol} {trade_dir} at {entry_val}")
