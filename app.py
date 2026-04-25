@@ -63,54 +63,61 @@ with st.sidebar:
         st.session_state.daily_loss_total = 0.0
         st.rerun()
 
-# ---------------- PHASE 0: HARD FILTERS ---------------- #
-st.header("PHASE 0: PRE-FLIGHT CHECK")
-col_p0_1, col_p0_2 = st.columns(2)
-with col_p0_1:
-    trade_limit_ok = st.session_state.trade_count < 3
-    st.checkbox("Daily Trade Limit (Max 3)", value=trade_limit_ok, disabled=True)
-with col_p0_2:
-    st.checkbox("News Cleared", value=news_ok, disabled=True)
-
-if not trade_limit_ok or st.session_state.daily_loss_total >= max_daily_risk_limit:
-    st.error("🛑 TRADING LOCKED: Limits reached.")
-    st.stop()
-
-# ---------------- TRIPLE TIMEFRAME ANALYSIS (ALIGNED) ---------------- #
+# ---------------- SHARED PRICE INPUT ---------------- #
+# We need a global market price to validate BOS/MSS automatically
+st.header("📍 LIVE MARKET DATA")
+curr_price = st.number_input("Enter Current XAUUSD Price", value=0.0, format="%.2f", step=0.0)
 st.markdown("---")
+
+# ---------------- TRIPLE TIMEFRAME ANALYSIS ---------------- #
 c4h, c1h, c5m = st.columns(3)
 
-# ROW 1: HEADERS
-c4h.subheader("⏳ 4H BIAS")
-c1h.subheader("⏱️ 1H STRUCTURE")
-c5m.subheader("⚡ 5M SHIFT")
+# --- 4H BIAS ---
+with c4h:
+    st.subheader("⏳ 4H BIAS")
+    htf_bias = st.radio("4H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", label_visibility="collapsed")
+    s4_h = st.number_input("4H Swing High", value=0.0, format="%.2f", step=0.0, key="s4h")
+    s4_l = st.number_input("4H Swing Low", value=0.0, format="%.2f", step=0.0, key="s4l")
+    
+    # Structural Logic for 4H
+    can_confirm_4h = False
+    if htf_bias == "Bullish ⬆️" and curr_price > s4_h and s4_h > 0: can_confirm_4h = True
+    elif htf_bias == "Bearish ⬇️" and curr_price < s4_l and s4_l > 0: can_confirm_4h = True
+    
+    bias_4h_ok = st.checkbox("4H BOS Confirmed", disabled=not can_confirm_4h, key="c4h")
+    if not can_confirm_4h and htf_bias != "Ranging":
+        st.caption("⚠️ Price must break Swing level to confirm.")
 
-# ROW 2: TREND SELECTION
-htf_bias = c4h.radio("4H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", label_visibility="collapsed")
-itf_trend = c1h.radio("1H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", label_visibility="collapsed")
-ltf_trend = c5m.radio("5M Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="5m_t", label_visibility="collapsed")
+# --- 1H STRUCTURE ---
+with c1h:
+    st.subheader("⏱️ 1H STRUCTURE")
+    itf_trend = st.radio("1H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", label_visibility="collapsed")
+    s1_h = st.number_input("1H Swing High", value=0.0, format="%.2f", step=0.0, key="s1h")
+    s1_l = st.number_input("1H Swing Low", value=0.0, format="%.2f", step=0.0, key="s1l")
+    
+    # Structural Logic for 1H
+    can_confirm_1h = False
+    if itf_trend == "Bullish ⬆️" and curr_price > s1_h and s1_h > 0: can_confirm_1h = True
+    elif itf_trend == "Bearish ⬇️" and curr_price < s1_l and s1_l > 0: can_confirm_1h = True
+    
+    bias_1h_ok = st.checkbox("1H Structure Confirmed", disabled=not can_confirm_1h, key="c1h")
 
-st.markdown(" ") # Spacer
+# --- 5M SHIFT ---
+with c5m:
+    st.subheader("⚡ 5M SHIFT")
+    ltf_trend = st.radio("5M Shift", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="5m_t", label_visibility="collapsed")
+    s5_h = st.number_input("5M Swing High", value=0.0, format="%.2f", step=0.0, key="s5h")
+    s5_l = st.number_input("5M Swing Low", value=0.0, format="%.2f", step=0.0, key="s5l")
+    
+    # Structural Logic for 5M (MSS)
+    can_confirm_5m = False
+    if ltf_trend == "Bullish ⬆️" and curr_price > s5_h and s5_h > 0: can_confirm_5m = True
+    elif ltf_trend == "Bearish ⬇️" and curr_price < s5_l and s5_l > 0: can_confirm_5m = True
+    
+    bias_5m_ok = st.checkbox("5M MSS Confirmed", disabled=not can_confirm_5m, key="c5h")
 
-# ROW 3: SWING HIGHS
-s4_h = c4h.number_input("4H Swing High", value=0.0, format="%.2f", step=0.0, key="s4h")
-s1_h = c1h.number_input("1H Swing High", value=0.0, format="%.2f", step=0.0, key="s1h")
-s5_h = c5m.number_input("5M Swing High", value=0.0, format="%.2f", step=0.0, key="s5h")
-
-# ROW 4: SWING LOWS
-s4_l = c4h.number_input("4H Swing Low", value=0.0, format="%.2f", step=0.0, key="s4l")
-s1_l = c1h.number_input("1H Swing Low", value=0.0, format="%.2f", step=0.0, key="s1l")
-s5_l = c5m.number_input("5M Swing Low", value=0.0, format="%.2f", step=0.0, key="s5l")
-
-# ROW 5: CONFIRMATION CHECKBOXES
-bias_4h_ok = c4h.checkbox("4H Confirmed", disabled=not (s4_h > 0 and s4_l > 0), key="c4h")
-bias_1h_ok = c1h.checkbox("1H Confirmed", disabled=not (s1_h > 0 and s1_l > 0), key="c1h")
-bias_5m_ok = c5m.checkbox("5M Confirmed", disabled=not (s5_h > 0 and s5_l > 0), key="c5h")
-
-# Logic Check for Three Phases
-phase1_ready = bias_4h_ok and htf_bias != "Ranging"
-phase2_ready = bias_1h_ok and itf_trend != "Ranging"
-phase3_ready = bias_5m_ok and ltf_trend != "Ranging"
+# Final Logic Check
+all_phases_ready = bias_4h_ok and bias_1h_ok and bias_5m_ok
 
 # ---------------- POI & EXECUTION ---------------- #
 st.markdown("---")
@@ -133,7 +140,6 @@ with col_poi:
     inside_zone = False
     if POI_DB:
         selected_poi = st.selectbox("Active POI", list(POI_DB.keys()))
-        curr_price = st.number_input("Market Price", value=0.0, format="%.2f", step=0.0)
         target = POI_DB[selected_poi]
         if target["low"] <= curr_price <= target["high"]:
             st.success("✅ AT POI")
@@ -154,11 +160,10 @@ with col_exec:
             lot = current_risk_usd / (pips * 10) if pips > 0 else 0
             st.metric("Lot Size", round(lot, 2))
             
-            # FINAL CHECK: Trends + POI + News
-            if phase1_ready and phase2_ready and phase3_ready and inside_zone and news_ok:
-                st.success("🔥 ALL TRENDS ALIGNED: EXECUTE")
+            if all_phases_ready and inside_zone and news_ok:
+                st.success("🔥 ALL LEVELS CONFIRMED: EXECUTE")
             else:
-                st.error("🚫 DO NOT ENTER: Check Alignment")
+                st.error("🚫 DO NOT ENTER: Check Structural Breaks")
 
     if entry > 0 and sl > 0:
         diff = abs(entry - sl)
