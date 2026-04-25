@@ -65,8 +65,8 @@ s4_h = c4h.number_input("Swing High", value=0.0, format="%.2f", key="s4h", disab
 s4_l = c4h.number_input("Swing Low", value=0.0, format="%.2f", key="s4l", disabled=not news_ok)
 bias_4h_ok = c4h.checkbox("4H Confirmed", key="4h_c", disabled=not (s4_h > 0 and s4_l > 0) or not news_ok)
 
-# --- 1H STRUCTURE ---
-c1h.subheader("⏱️ 1H STRUCTURE")
+# --- 1H STRUC (Shortened for alignment) ---
+c1h.subheader("⏱️ 1H STRUC")
 itf_trend = c1h.radio("Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", disabled=not bias_4h_ok)
 s1_h = c1h.number_input("Swing High", value=0.0, format="%.2f", key="s1h", disabled=not bias_4h_ok)
 s1_l = c1h.number_input("Swing Low", value=0.0, format="%.2f", key="s1l", disabled=not bias_4h_ok)
@@ -102,7 +102,7 @@ if bias_15m_ok:
         elif itf_trend == "Bearish ⬇️" and t15_trend == "Bearish ⬇️":
             st.success("🔥 COMMENT: QUAD-TIMEFRAME BEARISH ALIGNMENT. Perfect synchronization for shorts.")
 else:
-    st.write("⏳ Follow the confirmation sequence (4H -> 1H -> 30M -> 15M) to unlock intelligence.")
+    st.write("⏳ Follow confirmation sequence (4H -> 1H -> 30M -> 15M) to unlock.")
 
 # ---------------- PHASE 2 & 3 ---------------- #
 st.markdown("---")
