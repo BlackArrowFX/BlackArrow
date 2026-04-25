@@ -15,7 +15,6 @@ st.markdown("---")
 
 
 # ---------------- SESSION STATE ---------------- #
-# Stores data across app refreshes
 if "balance" not in st.session_state:
     st.session_state.balance = 2146.11
 if "trade_count" not in st.session_state:
@@ -30,10 +29,8 @@ if "win_count" not in st.session_state:
 with st.sidebar:
     st.header("💰 Risk Engine")
 
-    # Display Live Balance
     st.metric("Current Balance", f"${round(st.session_state.balance, 2)}")
     
-    # Risk Input Method
     risk_method = st.radio("Risk Method", ["Percentage (%)", "Fixed Amount ($)"])
     
     if risk_method == "Percentage (%)":
@@ -47,19 +44,15 @@ with st.sidebar:
 
     st.info(f"Active Risk: ${round(current_risk_usd, 2)}")
     
-    st.header("⏰ Session")
-    session = st.selectbox("Session", ["Asia", "London", "New York"])
-
-    st.header("🌍 News")
+    st.header("🌍 News Filter")
     st.markdown("[Check Forex Factory 📅](https://www.forexfactory.com/)")
     news_ok = st.toggle("No High Impact News")
 
     st.markdown("---")
     st.header("📊 Daily Journal")
     
-    # Display Stats
     st.write(f"Trades Taken: **{st.session_state.trade_count} / 3**")
-    st.write(f"Daily Loss: **${round(st.session_state.daily_loss_total, 2)}**")
+    st.write(f"Daily Drawdown: **-${round(st.session_state.daily_loss_total, 2)}**")
 
     # 1. Record Loss Button
     loss_disabled = st.session_state.trade_count >= 3 or st.session_state.daily_loss_total >= max_daily_risk_limit
@@ -79,30 +72,35 @@ with st.sidebar:
             st.session_state.trade_count += 1
             st.rerun()
 
-    if st.button("🔄 Reset Day"):
+    if st.button("🔄 Reset Daily Limits"):
         st.session_state.trade_count = 0
         st.session_state.daily_loss_total = 0.0
         st.session_state.win_count = 0
         st.rerun()
 
 
-# ---------------- HARD STOP LOGIC ---------------- #
-if st.session_state.trade_count >= 3:
-    st.error("🛑 MAX TRADES (3) REACHED. Trading locked until reset.")
+# ---------------- PHASE 0: HARD STOP LOGIC ---------------- #
+st.header("PHASE 0: HARD FILTERS")
+col1, col2 = st.columns(2)
+
+with col1:
+    trade_limit_ok = st.session_state.trade_count < 3
+    st.checkbox("Daily Trade Limit (Max 3)", value=trade_limit_ok, disabled=True)
+    if not trade_limit_ok:
+        st.error("🛑 MAX TRADES REACHED")
+
+with col2:
+    st.checkbox("News Cleared", value=news_ok, disabled=True)
+    if not news_ok:
+        st.warning("⚠️ AWAITING NEWS CLEARANCE")
+
+# Final Phase 0 Check
+if not trade_limit_ok:
     st.stop()
 
 if st.session_state.daily_loss_total >= max_daily_risk_limit:
-    st.error(f"🛑 10% DAILY DRAWDOWN HIT (-${round(st.session_state.daily_loss_total, 2)}). Trading locked.")
+    st.error(f"🛑 10% DAILY DRAWDOWN HIT (-${round(st.session_state.daily_loss_total, 2)})")
     st.stop()
-
-
-# ---------------- PHASE 0: FILTERS ---------------- #
-st.header("PHASE 0: HARD FILTER")
-session_ok = session in ["London", "New York"]
-c1, c2 = st.columns(2)
-with c1: st.checkbox("Valid Session", value=session_ok, disabled=True)
-with c2: st.checkbox("News Cleared", value=news_ok, disabled=True)
-hard_ok = session_ok and news_ok
 
 
 # ---------------- PHASE 1: POI PLAN ---------------- #
@@ -163,7 +161,6 @@ with calc_c1:
 with calc_c2:
     if entry > 0 and sl > 0:
         pips = abs(entry - sl) * 10
-        # Gold Lot Calculation (Risk / (Pips * 10))
         lot_size = current_risk_usd / (pips * 10) if pips > 0 else 0
         st.metric("Lot Size", round(lot_size, 2))
         st.write(f"Total Risk: ${round(current_risk_usd, 2)}")
