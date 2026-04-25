@@ -76,9 +76,9 @@ with c15m:
     s15_l = st.number_input("15M Low", value=0.0, format="%.2f", key="s15l", disabled=m15_lock)
     bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15_h > 0 and s15_l > 0))
 
-# ---------------- 5M MICRO-CONFIRMATION (OPTIONAL INFO) ---------------- #
+# ---------------- 5M MICRO-CONFIRMATION ---------------- #
 st.markdown("---")
-st.subheader("⚡ 5M MICRO-CONFIRMATION (Optional)")
+st.subheader("⚡ 5M MICRO-CONFIRMATION")
 c5_1, c5_2, c5_3 = st.columns(3)
 
 with c5_1:
@@ -98,33 +98,31 @@ with c5_2:
 
 with c5_3:
     st.write("**Confirmation Type**")
-    m5_bos_ok = st.checkbox("BOS Confirmed", disabled=m5_bos_p == 0)
-    m5_mss_ok = st.checkbox("MSS Confirmed", disabled=m5_mss_p == 0)
+    # THE TWO OPTIONS
+    m5_bos_ok = st.checkbox("BOS Confirmed (Trend Continues)", disabled=m5_bos_p == 0)
+    m5_mss_ok = st.checkbox("MSS Confirmed (Trend Reversal)", disabled=m5_mss_p == 0)
+    
+    # Combined logic for Phase 3 unlock
     m5_confirmed = m5_bos_ok or m5_mss_ok
 
-# ---------------- PHASE 2 & 3: EXECUTION ---------------- #
+# ---------------- PHASE 2 & 3 ---------------- #
 st.markdown("---")
+final_ready = m5_confirmed and news_ok
 
-# Main unlock logic: Phase 2/3 only require 15M Confirmed and News Filter cleared
-phase2_ready = bias_15m_ok and news_ok
-
-# Visual feedback for 5M status
-if m5_confirmed:
-    if m5_bos_ok: st.success("📈 5M TREND CONTINUATION: BOS Confirmed.")
-    if m5_mss_ok: st.info("🎯 5M TREND REVERSAL: MSS Confirmed.")
-elif phase2_ready:
-    st.warning("ℹ️ 5M Confirmation not set. Proceeding based on 15M Bias.")
+if final_ready:
+    if m5_bos_ok: st.success("📈 TREND CONTINUATION LOCKED: BOS Confirmed.")
+    if m5_mss_ok: st.info("🎯 TREND REVERSAL LOCKED: MSS Confirmed.")
 
 col_poi, col_exec = st.columns([1, 2])
 
 with col_poi:
     st.header("📋 PHASE 2: POI")
-    poi_type = st.selectbox("Trading Zone", ["Select...", "Swing High", "Swing Low", "Supply Zone", "Demand Zone", "Order Block", "FVG"], disabled=not phase2_ready)
-    zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f", disabled=not phase2_ready)
+    poi_type = st.selectbox("Trading Zone", ["Select...", "Swing High", "Swing Low", "Supply Zone", "Demand Zone", "Order Block", "FVG"], disabled=not final_ready)
+    zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f", disabled=not final_ready)
 
 with col_exec:
     st.header("🚀 PHASE 3: EXECUTE")
-    trade_dir = st.radio("Position Direction", ["LONG 🔵", "SHORT 🔴"], horizontal=True, disabled=not phase2_ready)
+    trade_dir = st.radio("Position Direction", ["LONG 🔵", "SHORT 🔴"], horizontal=True, disabled=not final_ready)
     
     pip_factor = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
     
@@ -133,8 +131,8 @@ with col_exec:
     if zone_price > 0:
         calc_sl = zone_price - (15 * pip_factor) if trade_dir == "LONG 🔵" else zone_price + (15 * pip_factor)
 
-    sl_val = st.number_input("Stop Loss", value=calc_sl, format="%.2f", disabled=not phase2_ready)
-    entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f", disabled=not phase2_ready)
+    sl_val = st.number_input("Stop Loss", value=calc_sl, format="%.2f", disabled=not final_ready)
+    entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f", disabled=not final_ready)
     
     if entry_val > 0 and sl_val > 0:
         pips_dist = abs(entry_val - sl_val) / pip_factor
