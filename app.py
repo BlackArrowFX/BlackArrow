@@ -85,17 +85,24 @@ with col_bias1:
     st.subheader("4H Market Structure")
     htf_bias = st.radio("Current Trend", ["Bullish (HH/HL) ⬆️", "Bearish (LH/LL) ⬇️", "Ranging/Unclear ↔️"])
     
-    # Swing Point Verification
-    c_swing_h = st.checkbox("4H Swing High Identified")
-    c_swing_l = st.checkbox("4H Swing Low Identified")
-    bias_confirmed = st.checkbox("4H Trend Confirmed (BOS/mBOS)")
+    # Input fields for Swing Points
+    swing_h_val = st.number_input("Input 4H Swing High Price", value=0.0, format="%.3f")
+    swing_l_val = st.number_input("Input 4H Swing Low Price", value=0.0, format="%.3f")
     
-    # THE TICK: Visual confirmation
-    if htf_bias != "Ranging/Unclear ↔️" and c_swing_h and c_swing_l and bias_confirmed:
-        st.success("✅ 4H TREND CONFIRMED")
+    # Logic: Only allow confirmation if prices are entered (> 0)
+    inputs_ready = swing_h_val > 0 and swing_l_val > 0
+    
+    bias_confirmed = st.checkbox(
+        "4H Trend Confirmed", 
+        disabled=not inputs_ready,
+        help="Input Swing High and Low prices to unlock this checkbox."
+    )
+    
+    if bias_confirmed and htf_bias != "Ranging/Unclear ↔️":
+        st.success("✅ 4H TREND VALIDATED")
         trend_tick = True
     else:
-        st.warning("⏳ Awaiting Full 4H Confirmation")
+        st.warning("⏳ Complete Swing Inputs & Confirm Trend")
         trend_tick = False
 
 with col_bias2:
@@ -164,7 +171,6 @@ with calc_c2:
 with calc_c3:
     if entry > 0 and sl > 0:
         diff = abs(entry - sl)
-        # Dynamic TP based on direction
         is_buy = entry > sl
         st.write(f"TP1 (1.5R): **{round(entry + (diff * 1.5 if is_buy else -diff * 1.5), 2)}**")
         st.write(f"TP2 (3.0R): **{round(entry + (diff * 3.0 if is_buy else -diff * 3.0), 2)}**")
