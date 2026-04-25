@@ -8,24 +8,16 @@ st.set_page_config(page_title="BlackArrowFX Precision Engine", layout="wide")
 now = datetime.now()
 dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 
-st.title("🏹 BlackArrowFX: Triple-Timeframe Execution Engine")
-st.caption(f"Current Server Time: {dt_string}")
-st.markdown("---")
-
-# ---------------- SESSION STATE INITIALIZATION ---------------- #
-if "balance" not in st.session_state: st.session_state.balance = 2146.11
-if "trade_count" not in st.session_state: st.session_state.trade_count = 0
-if "daily_loss_total" not in st.session_state: st.session_state.daily_loss_total = 0.0
-
-tfs = ["4H", "1H", "5M"]
-for tf in tfs:
-    if f"{tf}_bias" not in st.session_state: st.session_state[f"{tf}_bias"] = "Bullish ⬆️"
-    if f"{tf}_high" not in st.session_state: st.session_state[f"{tf}_high"] = 0.0
-    if f"{tf}_low" not in st.session_state: st.session_state[f"{tf}_low"] = 0.0
-
-# ---------------- SIDEBAR: RISK & JOURNAL ---------------- #
+# ---------------- SIDEBAR: RISK & ASSET ---------------- #
 with st.sidebar:
+    st.header("⚙️ System Config")
+    symbol = st.text_input("Enter Instrument (e.g., XAUUSD, EURUSD, US30)", value="XAUUSD").upper()
+    
+    st.markdown("---")
     st.header("💰 Risk Engine")
+    if "balance" not in st.session_state:
+        st.session_state.balance = 2146.11
+    
     st.metric("Current Balance", f"${round(st.session_state.balance, 2)}")
     
     risk_method = st.radio("Risk Method", ["Percentage (%)", "Fixed Amount ($)"])
@@ -35,112 +27,126 @@ with st.sidebar:
     else:
         current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
 
-    max_daily_risk = st.session_state.balance * 0.10
-    st.info(f"Active Risk: ${round(current_risk_usd, 2)}")
-    
     st.header("🌍 News Filter")
-    news_ok = st.toggle("No High Impact News", value=True)
+    st.markdown(f"[Check Forex Factory for {symbol} 📅](https://www.forexfactory.com/)")
+    # CRITICAL: This toggle now controls the entire engine
+    news_ok = st.toggle("No High Impact News")
 
-    st.markdown("---")
+    if "trade_count" not in st.session_state:
+        st.session_state.trade_count = 0
+    if "daily_loss_total" not in st.session_state:
+        st.session_state.daily_loss_total = 0.0
+
     st.header("📊 Daily Journal")
     st.write(f"Trades Taken: **{st.session_state.trade_count} / 3**")
     
-    col_l, col_w = st.columns(2)
-    if col_l.button("❌ LOSS", use_container_width=True):
-        st.session_state.balance -= current_risk_usd
-        st.session_state.daily_loss_total += current_risk_usd
-        st.session_state.trade_count += 1
+    if st.button("🔄 Reset Daily Limits"):
+        st.session_state.trade_count = 0
+        st.session_state.daily_loss_total = 0.0
         st.rerun()
 
-    if col_w.button("✅ WIN", use_container_width=True):
-        st.session_state.balance += (current_risk_usd * 2) # Default 2R
-        st.session_state.trade_count += 1
-        st.rerun()
+# ---------------- DYNAMIC HEADLINE ---------------- #
+st.title(f"🏹 BlackArrowFX: {symbol} Precision Engine")
+st.caption(f"Asset: {symbol} | Server Time: {dt_string}")
+st.markdown("---")
 
-# ---------------- PHASE 0: FILTERS ---------------- #
-if st.session_state.trade_count >= 3 or st.session_state.daily_loss_total >= max_daily_risk:
-    st.error("🛑 TRADING LOCKED: Daily limits reached.")
+# ---------------- PHASE 0: HARD FILTERS ---------------- #
+if not news_ok:
+    st.error(f"🛑 ENGINE STOPPED: High Impact News detected for {symbol}. Trading is disabled.")
     st.stop()
 
 # ---------------- TRIPLE TIMEFRAME ANALYSIS ---------------- #
-st.markdown("### 📊 Structural Alignment")
 c4h, c1h, c5m = st.columns(3)
-phase_ready = {"4H": False, "1H": False, "5M": False}
-columns = {"4H": c4h, "1H": c1h, "5M": c5m}
+c4h.subheader(f"⏳ 4H BIAS")
+c1h.subheader(f"⏱️ 1H STRUCT")
+c5m.subheader(f"⚡ 5M SHIFT")
 
-for tf in tfs:
-    with columns[tf]:
-        st.subheader(f"{tf} Analysis")
-        bias = st.session_state[f"{tf}_bias"]
-        st.info(f"Bias: **{bias}**")
-        
-        # Display/Input current swings
-        st.session_state[f"{tf}_high"] = st.number_input(f"High", value=st.session_state[f"{tf}_high"], format="%.2f", key=f"h_{tf}")
-        st.session_state[f"{tf}_low"] = st.number_input(f"Low", value=st.session_state[f"{tf}_low"], format="%.2f", key=f"l_{tf}")
+htf_bias = c4h.radio("4H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", label_visibility="collapsed")
+itf_trend = c1h.radio("1H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", label_visibility="collapsed")
+ltf_trend = c5m.radio("5M Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="5m_t", label_visibility="collapsed")
 
-        is_conf = st.checkbox("Confirmed Break?", key=f"conf_{tf}")
-        if is_conf:
-            options = ["BOS (High)", "MSS (Low)"] if "Bullish" in bias else ["BOS (Low)", "MSS (High)"]
-            choice = st.radio("Structure:", options, key=f"ch_{tf}", horizontal=True)
-            new_val = st.number_input("Break Price", format="%.2f", key=f"v_{tf}")
-            
-            if st.button(f"Update {tf}", key=f"btn_{tf}", use_container_width=True):
-                if "BOS" in choice:
-                    if "High" in choice: st.session_state[f"{tf}_high"] = new_val
-                    else: st.session_state[f"{tf}_low"] = new_val
-                else: # MSS Logic
-                    st.session_state[f"{tf}_bias"] = "Bearish ⬇️" if "Bullish" in bias else "Bullish ⬆️"
-                    if "High" in choice: st.session_state[f"{tf}_high"] = new_val
-                    else: st.session_state[f"{tf}_low"] = new_val
-                st.rerun()
-            
-            if new_val > 0: phase_ready[tf] = True
+s4_h = c4h.number_input("4H Swing High", value=0.0, format="%.2f", key="s4h")
+s1_h = c1h.number_input("1H Swing High", value=0.0, format="%.2f", key="s1h")
+s5_h = c5m.number_input("5M Swing High", value=0.0, format="%.2f", key="s5h")
 
-# ---------------- POI & EXECUTION ---------------- #
+s4_l = c4h.number_input("4H Swing Low", value=0.0, format="%.2f", key="s4l")
+s1_l = c1h.number_input("1H Swing Low", value=0.0, format="%.2f", key="s1l")
+s5_l = c5m.number_input("5M Swing Low", value=0.0, format="%.2f", key="s5l")
+
+phase1_ready = (s4_h > 0 and s4_l > 0) and htf_bias != "Ranging"
+phase2_ready = (s1_h > 0 and s1_l > 0) and itf_trend != "Ranging"
+phase3_ready = (s5_h > 0 and s5_l > 0) and ltf_trend != "Ranging"
+
+# ---------------- PHASE 2: POI PLAN ---------------- #
 st.markdown("---")
 col_poi, col_exec = st.columns([1, 2])
 
 with col_poi:
-    st.header("📋 POI Zone")
-    raw_text = st.text_area("1H POI (Price Range)", height=80, placeholder="Example: 2340.50 - 2345.00")
-    inside_zone = False
-    if raw_text:
-        match = re.search(r"(\d+\.?\d*)\s*-\s*(\d+\.?\d*)", raw_text)
-        if match:
-            low, high = sorted([float(match.group(1)), float(match.group(2))])
-            curr_price = st.number_input("Market Price", value=0.0, format="%.2f")
-            if low <= curr_price <= high:
-                st.success("✅ Price at POI")
-                inside_zone = True
-            else: st.error("❌ Price Outside POI")
-
-with col_exec:
-    st.header("🚀 Execution Engine")
-    e_col, s_col = st.columns(2)
-    entry = e_col.number_input("Entry Price", value=0.0, format="%.2f")
-    sl = s_col.number_input("Stop Loss", value=0.0, format="%.2f")
+    st.header(f"📋 PHASE 2: {symbol} POI")
+    poi_type = st.selectbox("Where am I trading?", [
+        "Select POI...", 
+        "Supply Zone", 
+        "Demand Zone", 
+        "Order Block", 
+        "FVG / Imbalance",
+        "HTF Swing High", 
+        "HTF Swing Low",
+        "Equal Highs/Lows"
+    ])
     
-    if entry > 0 and sl > 0:
-        pips = abs(entry - sl) * 10
-        lot = current_risk_usd / (pips * 10) if pips > 0 else 0
-        
-        st.metric("Required Lot Size", f"{round(lot, 2)} Lots")
-        
-        # Confluence Check
-        if all(phase_ready.values()) and inside_zone and news_ok:
-            st.success("🔥 TRADE CONFIRMED: BIAS + STRUCTURE + POI ALIGNED")
-        else:
-            st.warning("⚠️ CONFLUENCE MISSING: Ensure all TFs are confirmed and price is at POI.")
+    zone_price = st.number_input("Entry Zone Price (Level)", value=0.0, format="%.2f")
 
-        # TP Targets
-        diff = abs(entry - sl)
+# ---------------- PHASE 3: EXECUTION (+15 PIPS) ---------------- #
+with col_exec:
+    st.header(f"🚀 PHASE 3: {symbol} EXECUTE")
+    
+    if any(x in symbol for x in ["XAU", "GOLD", "JPY"]):
+        pip_factor = 0.01
+    elif any(x in symbol for x in ["US30", "NAS100", "GER40", "BTC", "ETH"]):
+        pip_factor = 1.0
+    else:
+        pip_factor = 0.0001
+        
+    calculated_entry = 0.0
+    if zone_price > 0:
+        # Determine direction: Supply/Highs suggest a Short, Demand/Lows suggest a Long
+        is_short_poi = any(x in poi_type for x in ["High", "Supply"])
+        if is_short_poi:
+            calculated_entry = zone_price - (15 * pip_factor)
+        else:
+            calculated_entry = zone_price + (15 * pip_factor)
+
+    calc_c1, calc_c2 = st.columns(2)
+    with calc_c1:
+        entry = st.number_input("Entry Price (Auto)", value=calculated_entry, format="%.2f")
+        sl = st.number_input("Stop Loss", value=0.0, format="%.2f")
+    
+    with calc_c2:
+        if entry > 0 and sl > 0:
+            raw_diff = abs(entry - sl)
+            pips = raw_diff / pip_factor
+            lot = (current_risk_usd / pips) / 10 if pips > 0 else 0
+            st.metric(f"{symbol} Lot Size", f"{round(lot, 2)} Lots")
+            st.caption(f"Risk: {round(pips, 1)} pips")
+
+    # CONFLUENCE CHECKLIST
+    st.markdown("---")
+    with st.expander("🔍 Confluence Checklist", expanded=True):
+        c1 = st.checkbox(f"{symbol} Trends Aligned", value=phase1_ready and phase2_ready and phase3_ready, disabled=True)
+        c2 = st.checkbox(f"{symbol} Zone & POI Set", value=(poi_type != "Select POI..." and zone_price > 0), disabled=True)
+        
+        if c1 and c2:
+            st.success(f"🔥 {symbol} READY: EXECUTE AT {round(entry, 2)}")
+        else:
+            st.warning(f"⚠️ {symbol} WAITING FOR DATA")
+
+    if entry > 0 and sl > 0:
         is_buy = entry > sl
+        diff = abs(entry - sl)
         tp1 = round(entry + (diff * 1.5 if is_buy else -diff * 1.5), 2)
         tp2 = round(entry + (diff * 3.0 if is_buy else -diff * 3.0), 2)
         
-        st.markdown(f"""
-        | Target | Price | Reward |
-        | :--- | :--- | :--- |
-        | **TP1 (1.5R)** | `{tp1}` | `${round(current_risk_usd * 1.5, 2)}` |
-        | **TP2 (3.0R)** | `{tp2}` | `${round(current_risk_usd * 3.0, 2)}` |
-        """)
+        st.subheader("🎯 Profit Targets")
+        r_col1, r_col2 = st.columns(2)
+        r_col1.metric("TP 1 (1.5R)", f"{tp1}", f"+${round(current_risk_usd * 1.5, 2)}")
+        r_col2.metric("TP 2 (3.0R)", f"{tp2}", f"+${round(current_risk_usd * 3.0, 2)}")
