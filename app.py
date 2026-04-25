@@ -3,12 +3,12 @@ import re
 from datetime import datetime
 
 # ---------------- SETUP ---------------- #
-st.set_page_config(page_title="BlackArrowFX POI Engine", layout="wide")
+st.set_page_config(page_title="BlackArrowFX 4H/1H Engine", layout="wide")
 
 now = datetime.now()
 dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 
-st.title("🏹 BlackArrowFX: Top-Down Execution Engine")
+st.title("🏹 BlackArrowFX: 4H/1H Execution Engine")
 st.caption(f"Current Server Time: {dt_string}")
 st.markdown("---")
 
@@ -73,31 +73,34 @@ with col2:
     st.checkbox("News Cleared", value=news_ok, disabled=True)
 
 if not trade_limit_ok or st.session_state.daily_loss_total >= max_daily_risk_limit:
-    st.error("🛑 TRADING LOCKED: Limits Reached.")
+    st.error("🛑 TRADING LOCKED: Daily limits reached.")
     st.stop()
 
-# ---------------- PHASE 1: TOP-DOWN ANALYSIS ---------------- #
+# ---------------- PHASE 1: 4H BIAS & LIQUIDITY ---------------- #
 st.markdown("---")
-st.header("PHASE 1: TOP-DOWN NARRATIVE")
-col_htf1, col_htf2 = st.columns(2)
+st.header("PHASE 1: 4H DIRECTIONAL BIAS")
+col_bias1, col_bias2 = st.columns(2)
 
-with col_htf1:
-    htf_trend = st.radio("Daily/4H Trend (Order Flow)", ["Bullish ⬆️", "Bearish ⬇️", "Ranging ↔️"])
-    htf_confirm = st.checkbox("Structure Break Confirmed on HTF?")
+with col_bias1:
+    htf_bias = st.radio("4H Market Structure", ["Bullish (HH/HL) ⬆️", "Bearish (LH/LL) ⬇️", "Ranging/Unclear ↔️"])
+    bias_confirmed = st.checkbox("4H Trend Confirmed?")
 
-with col_htf2:
-    liq_sweep = st.toggle("Liquidity Taken? (PDH/PDL/Equal Levels)")
-    market_bias_ok = htf_trend != "Ranging ↔️" and htf_confirm and liq_sweep
+with col_bias2:
+    st.write("**Draw on Liquidity (4H/Daily):**")
+    liq_sweep = st.toggle("Liquidity Taken (PDH/PDL or Equal Highs/Lows)")
+    premium_discount = st.radio("Price Location", ["Discount (Buying Only)", "Premium (Selling Only)", "Equilibrium (Wait)"])
 
-if market_bias_ok:
-    st.success("🎯 NARRATIVE ALIGNED: Proceed to POI Selection")
+bias_ok = htf_bias != "Ranging/Unclear ↔️" and bias_confirmed and liq_sweep
+
+if bias_ok:
+    st.success("🎯 4H BIAS ALIGNED: Move to 1H POI Selection")
 else:
-    st.warning("⚠️ WAITING FOR CLEAR BIAS & LIQUIDITY SWEEP")
+    st.warning("⚠️ WAITING FOR 4H ALIGNMENT & LIQUIDITY SWEEP")
 
-# ---------------- PHASE 2: POI PLAN ---------------- #
+# ---------------- PHASE 2: 1H POI TRADING PLAN ---------------- #
 st.markdown("---")
-st.header("PHASE 2: POI TRADING PLAN")
-raw_text = st.text_area("Paste POI zones from Analysis", height=100, placeholder="Example: 1H Demand $2340 - $2345")
+st.header("PHASE 2: 1H POI TRADING PLAN")
+raw_text = st.text_area("Paste 1H POI Zones", height=100, placeholder="Example: 1H Order Block $2340 - $2345")
 
 POI_DB = {}
 if raw_text:
@@ -112,26 +115,27 @@ if raw_text:
 
 inside_zone = False
 if POI_DB:
-    selected_poi = st.selectbox("Select Active POI", list(POI_DB.keys()))
+    st.success(f"Parsed {len(POI_DB)} Zones")
+    selected_poi = st.selectbox("Select Active 1H POI", list(POI_DB.keys()))
     price = st.number_input("Current Market Price", value=0.0, format="%.2f")
     target = POI_DB[selected_poi]
     if target["low"] <= price <= target["high"]:
-        st.success("✅ PRICE AT POINT OF INTEREST")
+        st.success("✅ PRICE AT 1H POI")
         inside_zone = True
     else:
-        st.error("❌ PRICE OUTSIDE POI")
+        st.error("❌ PRICE OUTSIDE 1H POI")
 
-# ---------------- PHASE 3: LTF CONFIRMATION ---------------- #
+# ---------------- PHASE 3: LTF TRIGGER (1M/5M) ---------------- #
 st.markdown("---")
-st.header("PHASE 3: LTF ENTRY TRIGGER (1M/5M)")
-c_mss = st.checkbox("MSS / CHoCH (Lower Timeframe Shift)")
-c_fvg = st.toggle("FVG/OB Refinement Entry")
+st.header("PHASE 3: LTF ENTRY TRIGGER")
+c_mss = st.checkbox("MSS / CHoCH (1M/5M Trend Shift)")
+c_fvg = st.toggle("FVG/OB Present for Entry")
 
-trigger_ok = c_mss and c_fvg and inside_zone and market_bias_ok
+trigger_ok = c_mss and c_fvg and inside_zone and bias_ok
 
-# ---------------- POSITION CALCULATOR ---------------- #
+# ---------------- PHASE 4: EXECUTION & POSITION ---------------- #
 st.markdown("---")
-st.header("PHASE 4: EXECUTION & POSITION")
+st.header("PHASE 4: EXECUTION ENGINE")
 calc_c1, calc_c2, calc_c3 = st.columns(3)
 
 with calc_c1:
