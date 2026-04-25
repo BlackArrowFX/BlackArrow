@@ -28,16 +28,14 @@ with st.sidebar:
         current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
 
     st.header("🌍 News Filter")
-    # THE MASTER LOCK: Default is OFF
     news_ok = st.toggle("No High Impact News", value=False)
     
     if not news_ok:
-        st.error("🚨 SYSTEM LOCKED: You must confirm NO HIGH IMPACT NEWS to proceed.")
+        st.error("🚨 SYSTEM LOCKED: Confirm news is clear.")
 
     if "trade_count" not in st.session_state: st.session_state.trade_count = 0
 
     st.header("📊 Daily Journal")
-    # Journal is locked if news is not cleared
     journal_disabled = not news_ok or st.session_state.trade_count >= 3
     
     col_loss, col_win = st.columns(2)
@@ -62,7 +60,6 @@ c4h, c1h, c30m, c15m = st.columns(4)
 
 # --- 4H BIAS ---
 c4h.subheader("⏳ 4H BIAS")
-# Locked by News
 htf_bias = c4h.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", disabled=not news_ok)
 h_val_lock = (htf_bias == "Select...") or not news_ok
 
@@ -72,7 +69,6 @@ bias_4h_ok = c4h.checkbox("4H Confirmed", key="4h_c", disabled=h_val_lock or not
 
 # --- 1H STRUC ---
 c1h.subheader("⏱️ 1H STRUC")
-# Locked by 4H Confirmation
 itf_trend = c1h.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", disabled=not bias_4h_ok)
 i_val_lock = (itf_trend == "Select...") or not bias_4h_ok
 
@@ -82,7 +78,6 @@ bias_1h_ok = c1h.checkbox("1H Confirmed", key="1h_c", disabled=i_val_lock or not
 
 # --- 30M SHIFT ---
 c30m.subheader("⚡ 30M SHIFT")
-# Locked by 1H Confirmation
 t30_trend = c30m.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="30m_t", disabled=not bias_1h_ok)
 m30_val_lock = (t30_trend == "Select...") or not bias_1h_ok
 
@@ -92,13 +87,13 @@ bias_30m_ok = c30m.checkbox("30M Confirmed", key="30m_c", disabled=m30_val_lock 
 
 # --- 15M ENTRY ---
 c15m.subheader("🎯 15M ENTRY")
-# Locked by 30M Confirmation
 t15_trend = c15m.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="15m_t", disabled=not bias_30m_ok)
 m15_val_lock = (t15_trend == "Select...") or not bias_30m_ok
 
 s15_h = c15m.number_input("Swing High", value=0.0, format="%.2f", key="s15h", disabled=m15_val_lock)
 s15_l = c15m.number_input("Swing Low", value=0.0, format="%.2f", key="s15l", disabled=m15_val_lock)
-bias_15m_ok = c15m.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15_h > 0 and s15_l > 0))
+# FIXED: Changed m15_lock to m15_val_lock to match the variable above
+bias_15m_ok = c15m.checkbox("15M Confirmed", key="15m_c", disabled=m15_val_lock or not (s15_h > 0 and s15_l > 0))
 
 # ---------------- MARKET INTELLIGENCE ---------------- #
 st.markdown("---")
@@ -116,7 +111,7 @@ if bias_15m_ok:
         elif itf_trend == "Bearish ⬇️" and t15_trend == "Bearish ⬇️":
             st.success("🔥 COMMENT: QUAD-TIMEFRAME BEARISH ALIGNMENT.")
 else:
-    st.write("⏳ System Status: Waiting for full News and Timeframe confirmation sequence.")
+    st.write("⏳ System Locked: Complete News Filter and 4H -> 1H -> 30M -> 15M sequence.")
 
 # ---------------- PHASE 2 & 3 ---------------- #
 st.markdown("---")
