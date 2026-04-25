@@ -8,25 +8,19 @@ st.set_page_config(page_title="BlackArrowFX Precision Engine", layout="wide")
 now = datetime.now()
 dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 
-st.title("🏹 BlackArrowFX: Triple-Timeframe Execution Engine")
-st.caption(f"Current Server Time: {dt_string}")
-st.markdown("---")
-
-# ---------------- SESSION STATE ---------------- #
-if "balance" not in st.session_state:
-    st.session_state.balance = 2146.11
-if "trade_count" not in st.session_state:
-    st.session_state.trade_count = 0
-if "daily_loss_total" not in st.session_state:
-    st.session_state.daily_loss_total = 0.0
-
-# ---------------- SIDEBAR: RISK & JOURNAL ---------------- #
+# ---------------- SIDEBAR: RISK & ASSET ---------------- #
 with st.sidebar:
-    st.header("💰 Risk Engine")
-    st.metric("Current Balance", f"${round(st.session_state.balance, 2)}")
+    st.header("⚙️ System Config")
     
-    # Asset Type for Pip Calculation
-    pair_type = st.selectbox("Instrument Type", ["Gold / JPY (0.01)", "Major Forex (0.0001)", "Indices/Crypto (1.0)"])
+    # NEW: Manual Instrument Input
+    symbol = st.text_input("Enter Instrument (e.g., XAUUSD, EURUSD, US30)", value="XAUUSD").upper()
+    
+    st.markdown("---")
+    st.header("💰 Risk Engine")
+    if "balance" not in st.session_state:
+        st.session_state.balance = 2146.11
+    
+    st.metric("Current Balance", f"${round(st.session_state.balance, 2)}")
     
     risk_method = st.radio("Risk Method", ["Percentage (%)", "Fixed Amount ($)"])
     if risk_method == "Percentage (%)":
@@ -39,10 +33,16 @@ with st.sidebar:
     st.info(f"Active Risk: ${round(current_risk_usd, 2)}")
     
     st.header("🌍 News Filter")
-    st.markdown("[Check Forex Factory 📅](https://www.forexfactory.com/)")
+    st.markdown(f"[Check Forex Factory for {symbol} 📅](https://www.forexfactory.com/)")
     news_ok = st.toggle("No High Impact News")
 
     st.markdown("---")
+    # Session State for Journaling
+    if "trade_count" not in st.session_state:
+        st.session_state.trade_count = 0
+    if "daily_loss_total" not in st.session_state:
+        st.session_state.daily_loss_total = 0.0
+
     st.header("📊 Daily Journal")
     st.write(f"Trades Taken: **{st.session_state.trade_count} / 3**")
     
@@ -66,6 +66,11 @@ with st.sidebar:
         st.session_state.daily_loss_total = 0.0
         st.rerun()
 
+# ---------------- DYNAMIC HEADLINE ---------------- #
+st.title(f"🏹 BlackArrowFX: {symbol} Precision Engine")
+st.caption(f"Asset: {symbol} | Server Time: {dt_string}")
+st.markdown("---")
+
 # ---------------- PHASE 0: HARD FILTERS ---------------- #
 st.header("PHASE 0: PRE-FLIGHT CHECK")
 col_p0_1, col_p0_2 = st.columns(2)
@@ -73,19 +78,19 @@ with col_p0_1:
     trade_limit_ok = st.session_state.trade_count < 3
     st.checkbox("Daily Trade Limit (Max 3)", value=trade_limit_ok, disabled=True)
 with col_p0_2:
-    st.checkbox("News Cleared", value=news_ok, disabled=True)
+    st.checkbox(f"{symbol} News Cleared", value=news_ok, disabled=True)
 
 if not trade_limit_ok or st.session_state.daily_loss_total >= max_daily_risk_limit:
-    st.error("🛑 TRADING LOCKED: Limits reached for today.")
+    st.error(f"🛑 TRADING LOCKED: Daily limits reached for {symbol}.")
     st.stop()
 
 # ---------------- TRIPLE TIMEFRAME ANALYSIS ---------------- #
 st.markdown("---")
 c4h, c1h, c5m = st.columns(3)
 
-c4h.subheader("⏳ 4H BIAS")
-c1h.subheader("⏱️ 1H STRUCTURE")
-c5m.subheader("⚡ 5M SHIFT")
+c4h.subheader(f"⏳ 4H {symbol} BIAS")
+c1h.subheader(f"⏱️ 1H {symbol} STRUCT")
+c5m.subheader(f"⚡ 5M {symbol} SHIFT")
 
 htf_bias = c4h.radio("4H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", label_visibility="collapsed")
 itf_trend = c1h.radio("1H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", label_visibility="collapsed")
@@ -112,16 +117,16 @@ st.markdown("---")
 col_poi, col_exec = st.columns([1, 2])
 
 with col_poi:
-    st.header("📋 PHASE 2: POI")
+    st.header(f"📋 PHASE 2: {symbol} POI")
     poi_type = st.selectbox("Where am I trading?", ["Select POI...", "Supply Zone", "Demand Zone", "Order Block", "FVG / Imbalance"])
     
-    raw_text = st.text_area("Paste 1H POI Zones", height=100, placeholder="Example: 1H Demand $2340.50 - $2345.00")
+    raw_text = st.text_area(f"Paste 1H {symbol} POI Zones", height=100, placeholder="Example: 1H Demand 2340.50 - 2345.00")
     POI_DB = {}
     if raw_text:
         lines = raw_text.split("\n")
         for line in lines:
             line = line.strip().replace("–", "-")
-            match = re.search(r"(\d{1,5}\.?\d*)\s*-\s*(\d{1,5}\.?\d*)", line)
+            match = re.search(r"(\d{1,6}\.?\d*)\s*-\s*(\d{1,6}\.?\d*)", line)
             if match:
                 low, high = float(match.group(1)), float(match.group(2))
                 name = line.split("$")[0].strip() or f"Zone {len(POI_DB)+1}"
@@ -130,19 +135,19 @@ with col_poi:
     inside_zone = False
     if POI_DB:
         selected_poi = st.selectbox("Active Zone", list(POI_DB.keys()))
-        curr_price = st.number_input("Market Price", value=0.0, format="%.2f")
+        curr_price = st.number_input(f"Current {symbol} Price", value=0.0, format="%.2f")
         target = POI_DB[selected_poi]
         if target["low"] <= curr_price <= target["high"]:
-            st.success("✅ AT POI")
+            st.success(f"✅ PRICE IN {symbol} POI")
             inside_zone = True
         else:
-            st.error("❌ OUTSIDE POI")
+            st.error(f"❌ PRICE OUTSIDE {symbol} POI")
     
     poi_confirmed = poi_type != "Select POI..." and inside_zone
 
 # ---------------- PHASE 3: EXECUTION ---------------- #
 with col_exec:
-    st.header("🚀 PHASE 3: EXECUTION")
+    st.header(f"🚀 PHASE 3: {symbol} EXECUTE")
     calc_c1, calc_c2 = st.columns(2)
     with calc_c1:
         entry = st.number_input("Entry Price", value=0.0, format="%.2f")
@@ -151,30 +156,30 @@ with col_exec:
     with calc_c2:
         if entry > 0 and sl > 0:
             raw_diff = abs(entry - sl)
-            # Pip Logic
-            if "Gold" in pair_type:
-                pips = raw_diff * 100 # Gold uses 0.01 for pips
-            elif "Major" in pair_type:
-                pips = raw_diff * 10000 # Forex uses 0.0001 for pips
+            
+            # AUTOMATIC PIP LOGIC BASED ON SYMBOL
+            if any(x in symbol for x in ["XAU", "GOLD", "JPY"]):
+                pips = raw_diff * 100 
+            elif any(x in symbol for x in ["US30", "NAS100", "GER40", "BTC", "ETH"]):
+                pips = raw_diff # Indices/Crypto usually 1 point = 1 pip
             else:
-                pips = raw_diff # Indices/Crypto 1.0
+                pips = raw_diff * 10000 # Standard Forex Majors
 
-            # Lot sizing formula: (Risk Amount / Pips) / 10
-            # (Standard adjustment for 1.0 lot being $10/pip on majors)
+            # Lot size: (Risk Amount / Pips) / 10
             lot = (current_risk_usd / pips) / 10 if pips > 0 else 0
-            st.metric("Recommended Lot Size", f"{round(lot, 2)} Lots")
+            st.metric(f"{symbol} Lot Size", f"{round(lot, 2)} Lots")
 
     # CONFLUENCE CHECKLIST
     st.markdown("---")
     with st.expander("🔍 Confluence Checklist", expanded=True):
-        c1 = st.checkbox("Trends Aligned (HTF/ITF/LTF)", value=phase1_ready and phase2_ready and phase3_ready, disabled=True)
-        c2 = st.checkbox("Valid POI Identified", value=poi_confirmed, disabled=True)
-        c3 = st.checkbox("No High-Impact News", value=news_ok, disabled=True)
+        c1 = st.checkbox(f"{symbol} Trends Aligned", value=phase1_ready and phase2_ready and phase3_ready, disabled=True)
+        c2 = st.checkbox(f"{symbol} POI Confirmed", value=poi_confirmed, disabled=True)
+        c3 = st.checkbox("Risk & News Cleared", value=news_ok, disabled=True)
         
         if c1 and c2 and c3:
-            st.success("🔥 ALL CRITERIA MET: EXECUTE TRADE")
+            st.success(f"🔥 {symbol} HIGH PROBABILITY SETUP")
         else:
-            st.warning("⚠️ WAITING FOR ALIGNMENT")
+            st.warning(f"⚠️ {symbol} NOT ALIGNED")
 
     if entry > 0 and sl > 0:
         is_buy = entry > sl
