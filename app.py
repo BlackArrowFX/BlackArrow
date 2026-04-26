@@ -198,6 +198,9 @@ with col_exec:
 
             # --- SAVE BUTTON ---
             if st.button("💾 SAVE TRADE DETAILS", use_container_width=True):
+                # CLEAN PLAN: Replace new lines with a separator for CSV stability
+                clean_plan = st.session_state.trade_notes.replace("\n", " | ")
+                
                 trade_data = {
                     "Time": dt_string,
                     "Asset": symbol,
@@ -206,9 +209,11 @@ with col_exec:
                     "1H (H/L)": f"{s1_h}/{s1_l}",
                     "30M (H/L)": f"{s30_h}/{s30_l}",
                     "15M (H/L)": f"{s15_h}/{s15_l}",
+                    "POI": f"{poi_type} @ {zone_price}",
+                    "Lots": round(lot_size, 2),
                     "Entry": entry_val,
                     "TP1/BE": f"{round(tp1, 2)} / {round(be_price, 2)}",
-                    "Plan": st.session_state.trade_notes
+                    "Plan": clean_plan
                 }
                 st.session_state.trade_history.append(trade_data)
                 st.toast("Trade Secured and Logged!")
@@ -231,7 +236,7 @@ if st.session_state.trade_history:
             st.session_state.trade_history = []
             st.rerun()
     with c_dl:
-        csv = df_log.to_csv(index=False).encode('utf-8')
+        csv = df_log.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
         st.download_button(
             label="📥 DOWNLOAD CSV",
             data=csv,
