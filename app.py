@@ -179,11 +179,20 @@ with col_exec:
         actual_pips_dist = abs(entry_val - sl_val) / pip_factor
         if actual_pips_dist > 0:
             lot_size = (current_risk_usd / actual_pips_dist) / 10
-            tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
             
-            m1, m2 = st.columns(2)
+            # --- CALCULATE TP & BE ---
+            tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
+            tp2 = entry_val + (actual_pips_dist * 3 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 3 * pip_factor)
+            be_price = entry_val 
+            
+            # --- DISPLAY ---
+            m1, m2, m3 = st.columns(3)
             m1.metric("Lot Size", f"{round(lot_size, 2)}")
             m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}")
+            m3.metric("TP 2 (1:3)", f"{round(tp2, 2)}")
+            
+            # --- SECURITY PROTOCOL NOTE ---
+            st.info(f"🛡️ **SECURITY PROTOCOL:** At **{round(tp1, 2)}**, take 50% partials and move SL to BE (**{round(be_price, 2)}**).")
             
             st.write(f"📏 Dist: {round(actual_pips_dist, 1)} pips | 💵 Risk: ${round(current_risk_usd, 2)}")
 
@@ -197,12 +206,12 @@ with col_exec:
                     "1H (H/L)": f"{s1_h}/{s1_l}",
                     "30M (H/L)": f"{s30_h}/{s30_l}",
                     "15M (H/L)": f"{s15_h}/{s15_l}",
-                    "POI": f"{poi_type} @ {zone_price}",
-                    "Lots": round(lot_size, 2),
+                    "Entry": entry_val,
+                    "TP1/BE": f"{round(tp1, 2)} / {round(be_price, 2)}",
                     "Plan": st.session_state.trade_notes
                 }
                 st.session_state.trade_history.append(trade_data)
-                st.toast("Trade Saved!")
+                st.toast("Trade Secured and Logged!")
 
 # ---------------- 📊 SESSION LOG ---------------- #
 st.markdown("---")
@@ -214,14 +223,13 @@ if st.session_state.trade_history:
     c_del1, c_del2, c_dl = st.columns([1,1,2])
     with c_del1:
         if st.button("🗑️ DELETE LAST", use_container_width=True):
-            st.session_state.trade_history.pop()
-            st.rerun()
+            if st.session_state.trade_history:
+                st.session_state.trade_history.pop()
+                st.rerun()
     with c_del2:
         if st.button("🧨 CLEAR ALL", use_container_width=True):
             st.session_state.trade_history = []
             st.rerun()
     with c_dl:
         csv = df_log.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 DOWNLOAD CSV", csv, "Trade_Log.csv", "text/csv", use_container_width=True)
-else:
-    st.info("No trades saved.")
+        st.download_button("📥 DOWNLOAD CSV", csv, f"Log_{now.strftime('%Y%m%d')}.
