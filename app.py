@@ -7,30 +7,13 @@ if "balance" not in st.session_state:
 if "trades_taken" not in st.session_state:
     st.session_state.trades_taken = 0
 
-# New State for 5M Logic Persistence
+# --- NEW: 5M STATE MANAGEMENT ---
 if "m5_trend_val" not in st.session_state:
     st.session_state.m5_trend_val = "Select..."
-if "m5_mss_p_val" not in st.session_state:
-    st.session_state.m5_mss_p_val = 0.0
-
-# ---------------- CALLBACK FUNCTIONS ---------------- #
-def handle_bos_click():
-    # Automatically untick the box after clicking
-    st.session_state.m5_bos_tick = False
-
-def handle_mss_click():
-    # 1. Flip trend from Bullish to Bearish (and vice versa)
-    current = st.session_state.m5_t
-    if current == "Bullish ⬆️":
-        st.session_state.m5_trend_val = "Bearish ⬇️"
-    elif current == "Bearish ⬇️":
-        st.session_state.m5_trend_val = "Bullish ⬆️"
-    
-    # 2. Empty the MSS Price
-    st.session_state.m5_mss_p_val = 0.0
-    
-    # 3. Auto untick the MSS box
-    st.session_state.m5_mss_tick = False
+if "m5_mss_price" not in st.session_state:
+    st.session_state.m5_mss_price = 0.0
+if "m5_bos_price" not in st.session_state:
+    st.session_state.m5_bos_price = 0.0
 
 # ---------------- SETUP ---------------- #
 st.set_page_config(page_title="BlackArrowFX Precision Engine", layout="wide")
@@ -46,13 +29,7 @@ with st.sidebar:
     
     st.markdown("---")
     st.header("💰 Risk Engine")
-    
-    st.session_state.balance = st.number_input(
-        "Current Balance ($)", 
-        value=float(st.session_state.balance), 
-        step=10.0, 
-        format="%.2f"
-    )
+    st.session_state.balance = st.number_input("Current Balance ($)", value=float(st.session_state.balance), step=10.0, format="%.2f")
     
     risk_method = st.radio("Risk Method", ["Percentage (%)", "Fixed Amount ($)"])
     if risk_method == "Percentage (%)":
@@ -61,16 +38,10 @@ with st.sidebar:
     else:
         current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
 
-    # ---------------- 2. NEWS FILTER ---------------- #
     st.markdown("---")
     st.header("🌍 News Filter")
     news_ok = st.toggle("No High Impact News Active", value=False) 
     
-    if not news_ok:
-        st.error("🚨 SYSTEM LOCKED: Confirm no news.")
-    else:
-        st.success("✅ News Cleared")
-
     # ---------------- 3. THE JOURNAL COMPONENT ---------------- #
     st.markdown("---")
     st.header("📊 Daily Journal")
@@ -89,152 +60,115 @@ with st.sidebar:
             st.session_state.trades_taken += 1
             st.rerun()
 
-    if st.button("Reset Daily Limits", use_container_width=True):
-        st.session_state.trades_taken = 0
-        st.rerun()
-
 # ---------------- MAIN INTERFACE ---------------- #
 st.title(f"🏹 BlackArrowFX: {symbol} Precision Engine")
-st.caption(f"Asset: {symbol} | Mode: {asset_type} | Server Time: {dt_string}")
 st.markdown("---")
 
-# ---------------- QUAD TIMEFRAME ANALYSIS ---------------- #
+# ---------------- QUAD TIMEFRAME ANALYSIS (Condensed for Space) ---------------- #
 c4h, c1h, c30m, c15m = st.columns(4)
-
 with c4h:
-    st.subheader("⏳ 4H BIAS")
-    htf_bias = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", disabled=not news_ok)
-    h_lock = not news_ok or htf_bias == "Select..."
-    s4_h = st.number_input("Swing High", value=0.0, format="%.2f", key="s4h", disabled=h_lock)
-    s4_l = st.number_input("Swing Low", value=0.0, format="%.2f", key="s4l", disabled=h_lock)
-    bias_4h_ok = st.checkbox("4H Confirmed", key="4h_c", disabled=h_lock or not (s4_h > 0 and s4_l > 0))
-
+    htf_bias = st.radio("4H Bias", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t")
+    bias_4h_ok = st.checkbox("4H Confirmed")
 with c1h:
-    st.subheader("⏱️ 1H STRUC")
-    itf_trend = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", disabled=not bias_4h_ok)
-    i_lock = not bias_4h_ok or itf_trend == "Select..."
-    s1_h = st.number_input("1H High", value=0.0, format="%.2f", key="s1h", disabled=i_lock)
-    s1_l = st.number_input("1H Low", value=0.0, format="%.2f", key="s1l", disabled=i_lock)
-    bias_1h_ok = st.checkbox("1H Confirmed", key="1h_c", disabled=i_lock or not (s1_h > 0 and s1_l > 0))
-
+    itf_trend = st.radio("1H Structure", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", disabled=not bias_4h_ok)
+    bias_1h_ok = st.checkbox("1H Confirmed", disabled=not bias_4h_ok)
 with c30m:
-    st.subheader("⚡ 30M SHIFT")
-    t30_trend = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="30m_t", disabled=not bias_1h_ok)
-    m30_lock = not bias_1h_ok or t30_trend == "Select..."
-    s30_h = st.number_input("30M High", value=0.0, format="%.2f", key="s30h", disabled=m30_lock)
-    s30_l = st.number_input("30M Low", value=0.0, format="%.2f", key="s30l", disabled=m30_lock)
-    bias_30m_ok = st.checkbox("30M Confirmed", key="30m_c", disabled=m30_lock or not (s30_h > 0 and s30_l > 0))
-
+    t30_trend = st.radio("30M Shift", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="30m_t", disabled=not bias_1h_ok)
+    bias_30m_ok = st.checkbox("30M Confirmed", disabled=not bias_1h_ok)
 with c15m:
-    st.subheader("🎯 15M ENTRY")
-    t15_trend = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="15m_t", disabled=not bias_30m_ok)
-    m15_lock = not bias_30m_ok or t15_trend == "Select..."
-    s15_h = st.number_input("15M High", value=0.0, format="%.2f", key="s15h", disabled=m15_lock)
-    s15_l = st.number_input("15M Low", value=0.0, format="%.2f", key="s15l", disabled=m15_lock)
-    bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15_h > 0 and s15_l > 0))
+    t15_trend = st.radio("15M Entry", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="15m_t", disabled=not bias_30m_ok)
+    bias_15m_ok = st.checkbox("15M Confirmed", disabled=not bias_30m_ok)
 
-# ---------------- 5M MICRO-CONFIRMATION (ENHANCED) ---------------- #
+# ---------------- ⚡ 5M MICRO-CONFIRMATION (DYNAMIC) ---------------- #
 st.markdown("---")
 st.subheader("⚡ 5M MICRO-CONFIRMATION")
 c5_1, c5_2, c5_3 = st.columns(3)
 
 with c5_1:
+    # Use index to control radio button via session state
     trend_options = ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"]
+    current_index = trend_options.index(st.session_state.m5_trend_val)
+    
     m5_trend = st.radio(
         "5M Current Trend", 
         trend_options, 
-        key="m5_t", 
-        index=trend_options.index(st.session_state.m5_trend_val),
+        index=current_index,
+        key="m5_trend_radio",
         disabled=not bias_15m_ok
     )
     st.session_state.m5_trend_val = m5_trend
-    m5_lock = not bias_15m_ok or m5_trend == "Select..."
 
 with c5_2:
-    label_bos = "BOS Price"
-    label_mss = "MSS Price"
-    if m5_trend == "Bearish ⬇️":
-        label_bos = "BOS Price (LL to break)"
-        label_mss = "MSS Price (LH to break)"
-    elif m5_trend == "Bullish ⬆️":
-        label_bos = "BOS Price (HH to break)"
-        label_mss = "MSS Price (HL to break)"
+    label_bos = "BOS Price (HH to break)" if m5_trend == "Bullish ⬆️" else "BOS Price (LL to break)"
+    label_mss = "MSS Price (HL to break)" if m5_trend == "Bullish ⬆️" else "MSS Price (LH to break)"
     
-    m5_bos_p = st.number_input(label_bos, value=0.0, format="%.2f", key="m5_bos_input", disabled=m5_lock)
+    m5_bos_p = st.number_input(label_bos, value=st.session_state.m5_bos_price, format="%.2f")
+    m5_mss_p = st.number_input(label_mss, value=st.session_state.m5_mss_price, format="%.2f")
     
-    m5_mss_p = st.number_input(
-        label_mss, 
-        value=st.session_state.m5_mss_p_val, 
-        format="%.2f", 
-        key="m5_mss_input_field",
-        disabled=m5_lock
-    )
-    st.session_state.m5_mss_p_val = m5_mss_p
+    # Update state immediately when user types
+    st.session_state.m5_bos_price = m5_bos_p
+    st.session_state.m5_mss_price = m5_mss_p
 
 with c5_3:
-    st.write("**Confirmation Type**")
-    m5_bos_ok = st.checkbox("BOS Confirmed", key="m5_bos_tick", on_change=handle_bos_click, disabled=m5_bos_p == 0)
-    m5_mss_ok = st.checkbox("MSS Confirmed", key="m5_mss_tick", on_change=handle_mss_click, disabled=m5_mss_p == 0)
+    st.write("**Confirmation Action**")
+    
+    # 🧠 THE SMART LOGIC FOR AUTO-UPDATING
+    do_bos = st.checkbox("BOS Confirmed (Reset Price)")
+    do_mss = st.checkbox("MSS Confirmed (Flip Trend)")
 
-# ---------------- PHASE 2.5: ORDER FLOW (NEW) ---------------- #
+    if do_bos:
+        st.session_state.m5_bos_price = 0.0 # Clear price
+        st.toast("BOS Acknowledged. Price Reset.")
+        st.rerun()
+
+    if do_mss:
+        # Flip the Trend logic
+        if st.session_state.m5_trend_val == "Bullish ⬆️":
+            st.session_state.m5_trend_val = "Bearish ⬇️"
+        elif st.session_state.m5_trend_val == "Bearish ⬇️":
+            st.session_state.m5_trend_val = "Bullish ⬆️"
+        
+        st.session_state.m5_mss_price = 0.0 # Clear price
+        st.toast("Trend Flipped & MSS Reset!")
+        st.rerun()
+
+# ---------------- PHASE 2.5: ORDER FLOW ---------------- #
 st.markdown("---")
-st.header("🐋 PHASE 2.5: ORDER FLOW (FOOTPRINT)")
-system_unlocked = bias_15m_ok and news_ok
-
+st.header("🐋 PHASE 2.5: ORDER FLOW")
 c_of1, c_of2 = st.columns(2)
 with c_of1:
-    shark_type = st.radio(
-        "Absorption Detected?",
-        ["None", "Shark Buy (Absorbing Sells)", "Shark Sell (Absorbing Buys)"],
-        disabled=not system_unlocked
-    )
-
+    shark_type = st.radio("Absorption?", ["None", "Shark Buy (Absorbing Sells)", "Shark Sell (Absorbing Buys)"])
 with c_of2:
-    delta_strength = st.selectbox(
-        "Delta Strength",
-        ["Weak", "Moderate", "Strong"],
-        disabled=not system_unlocked
-    )
+    delta_strength = st.selectbox("Delta Strength", ["Weak", "Moderate", "Strong"])
 
-# --- SMART LOGIC ---
+# Smart Orderflow Logic
 orderflow_ok = False
 if shark_type == "Shark Buy (Absorbing Sells)" and "Bullish" in htf_bias:
     orderflow_ok = True
 elif shark_type == "Shark Sell (Absorbing Buys)" and "Bearish" in htf_bias:
     orderflow_ok = True
 
-# ---------------- PHASE 2 & 3 ---------------- #
+# ---------------- PHASE 2 & 3: EXECUTION ---------------- #
 st.markdown("---")
 col_poi, col_exec = st.columns([1, 2])
 
 with col_poi:
     st.header("📋 PHASE 2: POI")
-    poi_type = st.selectbox("Trading Zone", ["Select...", "Swing High", "Swing Low", "Supply Zone", "Demand Zone", "Order Block", "FVG"], disabled=not system_unlocked)
-    zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f", disabled=not system_unlocked)
-    trade_dir = st.radio("Position Direction", ["Select...", "LONG 🔵", "SHORT 🔴"], horizontal=True, disabled=not system_unlocked)
+    zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f")
+    trade_dir = st.radio("Position Direction", ["Select...", "LONG 🔵", "SHORT 🔴"], horizontal=True)
 
 with col_exec:
     st.header("🚀 PHASE 3: EXECUTE")
-    pip_factor = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
-    
-    calc_sl = 0.0
-    if zone_price > 0 and trade_dir != "Select...":
-        calc_sl = zone_price - (15 * pip_factor) if trade_dir == "LONG 🔵" else zone_price + (15 * pip_factor)
-
-    sl_val = st.number_input("Stop Loss (15 Pips)", value=calc_sl, format="%.2f", disabled=not system_unlocked)
-    entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f", disabled=not system_unlocked)
+    pip_factor = 0.1 if "METAL" in asset_type else (0.0001 if "FOREX" in asset_type else 1.0)
+    entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f")
+    sl_val = st.number_input("Manual Stop Loss", value=0.0, format="%.2f")
     
     if entry_val > 0 and sl_val > 0 and trade_dir != "Select...":
         pips_dist = abs(entry_val - sl_val) / pip_factor
         
-        # FINAL VALIDATION GATE
         if not orderflow_ok:
             st.warning("⚠️ WAIT: No institutional confirmation (Order Flow)")
-        elif pips_dist > 0:
-            lot_size = (current_risk_usd / pips_dist) / 10
+        else:
+            lot_size = (current_risk_usd / pips_dist) / 10 if pips_dist > 0 else 0
             st.metric("Calculated Lot Size", f"{round(lot_size, 2)}")
-            st.write(f"📏 Dist: {round(pips_dist, 1)} pips | 💵 Risk: ${round(current_risk_usd, 2)}")
-            
-            if m5_bos_ok: st.success("📈 BOS Confirmed")
-            if m5_mss_ok: st.info("🎯 MSS Confirmed")
             st.success("🔥 TRADE FULLY VALIDATED")
