@@ -200,33 +200,48 @@ with col_exec:
             with tm_c2:
                 st.write(f"💰 **Partial TP:** Take 50-70% at `{round(tp1, 2)}`")
 
-# ---------------- NEW: SAVE TRADE FEATURE ---------------- #
+# ---------------- ARCHIVE & SAFETY DELETE ---------------- #
 st.markdown("---")
 st.subheader("💾 ARCHIVE TRADE")
-if st.button("LOG THIS TRADE", use_container_width=True):
-    trade_data = {
-        "Timestamp": dt_string,
-        "Symbol": symbol,
-        "Direction": trade_dir,
-        "Entry": entry_val,
-        "SL": sl_val,
-        "TP1": tp1 if 'tp1' in locals() else 0,
-        "Notes": st.session_state.trade_notes.replace("\n", " | ")
-    }
-    
-    df = pd.DataFrame([trade_data])
-    file_path = "trade_log.csv"
-    
-    # Check if file exists to determine if we need a header
-    if not os.path.isfile(file_path):
-        df.to_csv(file_path, index=False)
-    else:
-        df.to_csv(file_path, mode='a', header=False, index=False)
-        
-    st.success(f"Trade for {symbol} saved to trade_log.csv!")
+save_col, undo_col = st.columns(2)
+
+file_path = "trade_log.csv"
+
+with save_col:
+    if st.button("LOG THIS TRADE", use_container_width=True):
+        trade_data = {
+            "Timestamp": dt_string,
+            "Symbol": symbol,
+            "Direction": trade_dir,
+            "Entry": entry_val,
+            "SL": sl_val,
+            "TP1": tp1 if 'tp1' in locals() else 0,
+            "Notes": st.session_state.trade_notes.replace("\n", " | ")
+        }
+        df = pd.DataFrame([trade_data])
+        if not os.path.isfile(file_path):
+            df.to_csv(file_path, index=False)
+        else:
+            df.to_csv(file_path, mode='a', header=False, index=False)
+        st.success(f"Trade saved!")
+
+with undo_col:
+    if st.button("🗑️ UNDO LAST LOG", use_container_width=True):
+        if os.path.exists(file_path):
+            df_log = pd.read_csv(file_path)
+            if len(df_log) > 0:
+                # Delete the very last row
+                df_log = df_log.iloc[:-1] 
+                df_log.to_csv(file_path, index=False)
+                st.warning("Last entry deleted from log.")
+                st.rerun()
+            else:
+                st.error("Log is already empty.")
+        else:
+            st.error("No log file found.")
 
 with st.expander("📂 View Recent Logged Trades"):
-    if os.path.exists("trade_log.csv"):
-        st.dataframe(pd.read_csv("trade_log.csv").tail(5))
+    if os.path.exists(file_path):
+        st.dataframe(pd.read_csv(file_path).tail(10))
     else:
         st.write("No trades logged yet.")
