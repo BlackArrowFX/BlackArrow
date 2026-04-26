@@ -6,6 +6,8 @@ if "balance" not in st.session_state:
     st.session_state.balance = 2146.11  
 if "trades_taken" not in st.session_state:
     st.session_state.trades_taken = 0
+if "trade_notes" not in st.session_state:
+    st.session_state.trade_notes = ""
 
 # ---------------- SETUP ---------------- #
 st.set_page_config(page_title="BlackArrowFX Precision Engine", layout="wide")
@@ -22,8 +24,6 @@ with st.sidebar:
     st.markdown("---")
     st.header("💰 Risk Engine")
     
-    # --- UPDATED: MANUAL BALANCE INPUT ---
-    # This allows you to type in a new balance for withdrawals/deposits
     st.session_state.balance = st.number_input(
         "Current Balance ($)", 
         value=float(st.session_state.balance), 
@@ -110,8 +110,18 @@ with c15m:
     s15_l = st.number_input("15M Low", value=0.0, format="%.2f", key="s15l", disabled=m15_lock)
     bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15_h > 0 and s15_l > 0))
 
-# ---------------- 5M MICRO-CONFIRMATION ---------------- #
+# ---------------- STRATEGY NOTES (NEW FEATURE) ---------------- #
 st.markdown("---")
+st.subheader("📝 POST-SHOCK EXECUTION PLAN")
+with st.expander("📌 CLICK TO VIEW/EDIT TRADE NOTES", expanded=True):
+    st.session_state.trade_notes = st.text_area(
+        "Strategic Notes (Liquidity, Delta, POI):",
+        value=st.session_state.trade_notes,
+        height=200,
+        placeholder="Paste your 'What to do' and 'What not to do' here..."
+    )
+
+# ---------------- 5M MICRO-CONFIRMATION ---------------- #
 st.subheader("⚡ 5M MICRO-CONFIRMATION")
 c5_1, c5_2, c5_3 = st.columns(3)
 
@@ -134,6 +144,18 @@ with c5_3:
     m5_bos_ok = st.checkbox("BOS Confirmed", disabled=m5_bos_p == 0)
     m5_mss_ok = st.checkbox("MSS Confirmed", disabled=m5_mss_p == 0)
 
+# ---------------- CONFLUENCE METER ---------------- #
+st.markdown("---")
+confluences = [bias_4h_ok, bias_1h_ok, bias_30m_ok, bias_15m_ok, (m5_bos_ok or m5_mss_ok)]
+score = sum(confluences)
+progress = score / 5
+
+col_met, col_stat = st.columns([3, 1])
+with col_met:
+    st.progress(progress)
+with col_stat:
+    st.write(f"**Setup Strength: {int(progress*100)}%**")
+
 # ---------------- PHASE 2 & 3 ---------------- #
 st.markdown("---")
 system_unlocked = bias_15m_ok and news_ok
@@ -150,19 +172,30 @@ with col_exec:
     st.header("🚀 PHASE 3: EXECUTE")
     pip_factor = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
     
+    # Using 20 pips for Stop Loss as per your Strategy Plan
+    sl_distance_pips = 20
     calc_sl = 0.0
     if zone_price > 0 and trade_dir != "Select...":
-        calc_sl = zone_price - (15 * pip_factor) if trade_dir == "LONG 🔵" else zone_price + (15 * pip_factor)
+        calc_sl = zone_price - (sl_distance_pips * pip_factor) if trade_dir == "LONG 🔵" else zone_price + (sl_distance_pips * pip_factor)
 
-    sl_val = st.number_input("Stop Loss (15 Pips)", value=calc_sl, format="%.2f", disabled=not system_unlocked)
+    sl_val = st.number_input(f"Stop Loss ({sl_distance_pips} Pips)", value=calc_sl, format="%.2f", disabled=not system_unlocked)
     entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f", disabled=not system_unlocked)
     
     if entry_val > 0 and sl_val > 0 and trade_dir != "Select...":
-        pips_dist = abs(entry_val - sl_val) / pip_factor
-        if pips_dist > 0:
-            lot_size = (current_risk_usd / pips_dist) / 10
-            st.metric("Calculated Lot Size", f"{round(lot_size, 2)}")
-            st.write(f"📏 Dist: {round(pips_dist, 1)} pips | 💵 Risk: ${round(current_risk_usd, 2)}")
+        actual_pips_dist = abs(entry_val - sl_val) / pip_factor
+        if actual_pips_dist > 0:
+            lot_size = (current_risk_usd / actual_pips_dist) / 10
+            
+            # TP Calculations (1:2 and 1:3 RR)
+            tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
+            tp2 = entry_val + (actual_pips_dist * 3 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 3 * pip_factor)
+            
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Lot Size", f"{round(lot_size, 2)}")
+            m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}")
+            m3.metric("TP 2 (1:3)", f"{round(tp2, 2)}")
+            
+            st.write(f"📏 Dist: {round(actual_pips_dist, 1)} pips | 💵 Risk: ${round(current_risk_usd, 2)}")
             
             if m5_bos_ok: st.success("📈 BOS Confirmed")
             if m5_mss_ok: st.info("🎯 MSS Confirmed")
