@@ -1,5 +1,7 @@
 import streamlit as st
 from datetime import datetime
+import pandas as pd
+import os
 
 # ---------------- 1. INITIALIZE GLOBAL STATE ---------------- #
 if "balance" not in st.session_state:
@@ -108,7 +110,7 @@ with c15m:
     s15_l = st.number_input("15M Low", value=0.0, format="%.2f", key="s15l", disabled=m15_lock)
     bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15_h > 0 and s15_l > 0))
 
-# ---------------- STRATEGY NOTES (DOUBLED SIZE & TOP OF 5M) ---------------- #
+# ---------------- STRATEGY NOTES ---------------- #
 st.markdown("---")
 st.subheader("📝 POST-SHOCK EXECUTION PLAN")
 with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
@@ -182,8 +184,6 @@ with col_exec:
         actual_pips_dist = abs(entry_val - sl_val) / pip_factor
         if actual_pips_dist > 0:
             lot_size = (current_risk_usd / actual_pips_dist) / 10
-            
-            # Take Profit Levels
             tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
             tp2 = entry_val + (actual_pips_dist * 3 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 3 * pip_factor)
             
@@ -192,7 +192,6 @@ with col_exec:
             m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}")
             m3.metric("TP 2 (1:3)", f"{round(tp2, 2)}")
             
-            # --- NEW: TRADE MANAGEMENT BLOCK ---
             st.markdown("---")
             st.info("🛡️ **Trade Management Guide**")
             tm_c1, tm_c2 = st.columns(2)
@@ -200,5 +199,34 @@ with col_exec:
                 st.write(f"📍 **Set BE at:** `{round(tp1, 2)}` (TP1 reached)")
             with tm_c2:
                 st.write(f"💰 **Partial TP:** Take 50-70% at `{round(tp1, 2)}`")
-            
-            st.write(f"📏 Dist: {round(actual_pips_dist, 1)} pips | 💵 Risk: ${round(current_risk_usd, 2)}")
+
+# ---------------- NEW: SAVE TRADE FEATURE ---------------- #
+st.markdown("---")
+st.subheader("💾 ARCHIVE TRADE")
+if st.button("LOG THIS TRADE", use_container_width=True):
+    trade_data = {
+        "Timestamp": dt_string,
+        "Symbol": symbol,
+        "Direction": trade_dir,
+        "Entry": entry_val,
+        "SL": sl_val,
+        "TP1": tp1 if 'tp1' in locals() else 0,
+        "Notes": st.session_state.trade_notes.replace("\n", " | ")
+    }
+    
+    df = pd.DataFrame([trade_data])
+    file_path = "trade_log.csv"
+    
+    # Check if file exists to determine if we need a header
+    if not os.path.isfile(file_path):
+        df.to_csv(file_path, index=False)
+    else:
+        df.to_csv(file_path, mode='a', header=False, index=False)
+        
+    st.success(f"Trade for {symbol} saved to trade_log.csv!")
+
+with st.expander("📂 View Recent Logged Trades"):
+    if os.path.exists("trade_log.csv"):
+        st.dataframe(pd.read_csv("trade_log.csv").tail(5))
+    else:
+        st.write("No trades logged yet.")
