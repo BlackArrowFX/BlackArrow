@@ -43,6 +43,10 @@ with st.sidebar:
 
     st.markdown("---")
     st.header("🌍 News Filter")
+    
+    # NEW: Link to Forex Factory
+    st.link_button("📊 Check Forex Factory", "https://www.forexfactory.com/", use_container_width=True)
+    
     news_ok = st.toggle("No High Impact News Active", value=False) 
     
     if not news_ok:
@@ -198,7 +202,6 @@ with col_exec:
 
             # --- SAVE BUTTON ---
             if st.button("💾 SAVE TRADE DETAILS", use_container_width=True):
-                # CLEAN PLAN: Replace new lines with a separator for CSV stability
                 clean_plan = st.session_state.trade_notes.replace("\n", " | ")
                 
                 trade_data = {
