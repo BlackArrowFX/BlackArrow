@@ -220,7 +220,7 @@ if st.session_state.trade_history:
     df_log = pd.DataFrame(st.session_state.trade_history)
     st.dataframe(df_log, use_container_width=True)
     
-    c_del1, c_del2, c_dl = st.columns([1,1,2])
+    c_del1, c_del2, c_dl = st.columns([1, 1, 2])
     with c_del1:
         if st.button("🗑️ DELETE LAST", use_container_width=True):
             if st.session_state.trade_history:
@@ -232,4 +232,12 @@ if st.session_state.trade_history:
             st.rerun()
     with c_dl:
         csv = df_log.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 DOWNLOAD CSV", csv, f"Log_{now.strftime('%Y%m%d')}.
+        st.download_button(
+            label="📥 DOWNLOAD CSV",
+            data=csv,
+            file_name=f"Trade_Log_{now.strftime('%Y%m%d')}.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+else:
+    st.info("No trades saved yet.")
