@@ -38,7 +38,6 @@ with st.sidebar:
     else:
         current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
 
-    # ---------------- 2. NEWS FILTER ---------------- #
     st.markdown("---")
     st.header("🌍 News Filter")
     news_ok = st.toggle("No High Impact News Active", value=False) 
@@ -48,7 +47,6 @@ with st.sidebar:
     else:
         st.success("✅ News Cleared")
 
-    # ---------------- 3. THE JOURNAL COMPONENT ---------------- #
     st.markdown("---")
     st.header("📊 Daily Journal")
     st.write(f"Trades Taken: **{st.session_state.trades_taken} / 3**")
@@ -185,6 +183,7 @@ with col_exec:
         if actual_pips_dist > 0:
             lot_size = (current_risk_usd / actual_pips_dist) / 10
             
+            # Take Profit Levels
             tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
             tp2 = entry_val + (actual_pips_dist * 3 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 3 * pip_factor)
             
@@ -192,5 +191,14 @@ with col_exec:
             m1.metric("Lot Size", f"{round(lot_size, 2)}")
             m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}")
             m3.metric("TP 2 (1:3)", f"{round(tp2, 2)}")
+            
+            # --- NEW: TRADE MANAGEMENT BLOCK ---
+            st.markdown("---")
+            st.info("🛡️ **Trade Management Guide**")
+            tm_c1, tm_c2 = st.columns(2)
+            with tm_c1:
+                st.write(f"📍 **Set BE at:** `{round(tp1, 2)}` (TP1 reached)")
+            with tm_c2:
+                st.write(f"💰 **Partial TP:** Take 50-70% at `{round(tp1, 2)}`")
             
             st.write(f"📏 Dist: {round(actual_pips_dist, 1)} pips | 💵 Risk: ${round(current_risk_usd, 2)}")
