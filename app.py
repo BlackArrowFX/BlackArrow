@@ -1,5 +1,6 @@
 import streamlit as st
 from datetime import datetime
+import pandas as pd
 
 # ---------------- 1. INITIALIZE GLOBAL STATE ---------------- #
 if "balance" not in st.session_state:
@@ -8,6 +9,8 @@ if "trades_taken" not in st.session_state:
     st.session_state.trades_taken = 0
 if "trade_notes" not in st.session_state:
     st.session_state.trade_notes = ""
+if "trade_history" not in st.session_state:
+    st.session_state.trade_history = []
 
 # ---------------- SETUP ---------------- #
 st.set_page_config(page_title="BlackArrowFX Precision Engine", layout="wide")
@@ -38,7 +41,6 @@ with st.sidebar:
     else:
         current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
 
-    # ---------------- 2. NEWS FILTER ---------------- #
     st.markdown("---")
     st.header("🌍 News Filter")
     news_ok = st.toggle("No High Impact News Active", value=False) 
@@ -48,7 +50,6 @@ with st.sidebar:
     else:
         st.success("✅ News Cleared")
 
-    # ---------------- 3. THE JOURNAL COMPONENT ---------------- #
     st.markdown("---")
     st.header("📊 Daily Journal")
     st.write(f"Trades Taken: **{st.session_state.trades_taken} / 3**")
@@ -110,14 +111,14 @@ with c15m:
     s15_l = st.number_input("15M Low", value=0.0, format="%.2f", key="s15l", disabled=m15_lock)
     bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15_h > 0 and s15_l > 0))
 
-# ---------------- STRATEGY NOTES (DOUBLED SIZE & TOP OF 5M) ---------------- #
+# ---------------- STRATEGY NOTES ---------------- #
 st.markdown("---")
 st.subheader("📝 POST-SHOCK EXECUTION PLAN")
 with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
     st.session_state.trade_notes = st.text_area(
         "Paste Strategic Setup Here:",
         value=st.session_state.trade_notes,
-        height=400,
+        height=300,
         placeholder="WHAT TO DO: Watch for Liquidity Sweep...\nWHAT NOT TO DO: No Panic Entry..."
     )
 
@@ -130,12 +131,8 @@ with c5_1:
     m5_lock = not bias_15m_ok or m5_trend == "Select..."
 
 with c5_2:
-    if m5_trend == "Bearish ⬇️":
-        label_bos = "BOS Price (LL to break)"
-        label_mss = "MSS Price (LH to break)"
-    else:
-        label_bos = "BOS Price (HH to break)"
-        label_mss = "MSS Price (HL to break)"
+    label_bos = "BOS Price"
+    label_mss = "MSS Price"
     m5_bos_p = st.number_input(label_bos, value=0.0, format="%.2f", disabled=m5_lock)
     m5_mss_p = st.number_input(label_mss, value=0.0, format="%.2f", disabled=m5_lock)
 
@@ -159,7 +156,6 @@ with col_stat:
 # ---------------- PHASE 2 & 3 ---------------- #
 st.markdown("---")
 system_unlocked = bias_15m_ok and news_ok
-
 col_poi, col_exec = st.columns([1, 2])
 
 with col_poi:
@@ -171,7 +167,6 @@ with col_poi:
 with col_exec:
     st.header("🚀 PHASE 3: EXECUTE")
     pip_factor = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
-    
     sl_distance_pips = 20
     calc_sl = 0.0
     if zone_price > 0 and trade_dir != "Select...":
@@ -184,13 +179,49 @@ with col_exec:
         actual_pips_dist = abs(entry_val - sl_val) / pip_factor
         if actual_pips_dist > 0:
             lot_size = (current_risk_usd / actual_pips_dist) / 10
-            
             tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
-            tp2 = entry_val + (actual_pips_dist * 3 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 3 * pip_factor)
             
-            m1, m2, m3 = st.columns(3)
+            m1, m2 = st.columns(2)
             m1.metric("Lot Size", f"{round(lot_size, 2)}")
             m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}")
-            m3.metric("TP 2 (1:3)", f"{round(tp2, 2)}")
             
             st.write(f"📏 Dist: {round(actual_pips_dist, 1)} pips | 💵 Risk: ${round(current_risk_usd, 2)}")
+
+            # --- SAVE BUTTON ---
+            if st.button("💾 SAVE TRADE DETAILS", use_container_width=True):
+                trade_data = {
+                    "Time": dt_string,
+                    "Asset": symbol,
+                    "Dir": trade_dir,
+                    "4H (H/L)": f"{s4_h}/{s4_l}",
+                    "1H (H/L)": f"{s1_h}/{s1_l}",
+                    "30M (H/L)": f"{s30_h}/{s30_l}",
+                    "15M (H/L)": f"{s15_h}/{s15_l}",
+                    "POI": f"{poi_type} @ {zone_price}",
+                    "Lots": round(lot_size, 2),
+                    "Plan": st.session_state.trade_notes
+                }
+                st.session_state.trade_history.append(trade_data)
+                st.toast("Trade Saved!")
+
+# ---------------- 📊 SESSION LOG ---------------- #
+st.markdown("---")
+st.header("📂 Session Trade Log")
+if st.session_state.trade_history:
+    df_log = pd.DataFrame(st.session_state.trade_history)
+    st.dataframe(df_log, use_container_width=True)
+    
+    c_del1, c_del2, c_dl = st.columns([1,1,2])
+    with c_del1:
+        if st.button("🗑️ DELETE LAST", use_container_width=True):
+            st.session_state.trade_history.pop()
+            st.rerun()
+    with c_del2:
+        if st.button("🧨 CLEAR ALL", use_container_width=True):
+            st.session_state.trade_history = []
+            st.rerun()
+    with c_dl:
+        csv = df_log.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 DOWNLOAD CSV", csv, "Trade_Log.csv", "text/csv", use_container_width=True)
+else:
+    st.info("No trades saved.")
