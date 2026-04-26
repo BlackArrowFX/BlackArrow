@@ -110,15 +110,15 @@ with c15m:
     s15_l = st.number_input("15M Low", value=0.0, format="%.2f", key="s15l", disabled=m15_lock)
     bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15_h > 0 and s15_l > 0))
 
-# ---------------- STRATEGY NOTES (NEW FEATURE) ---------------- #
+# ---------------- STRATEGY NOTES (DOUBLED SIZE & TOP OF 5M) ---------------- #
 st.markdown("---")
 st.subheader("📝 POST-SHOCK EXECUTION PLAN")
-with st.expander("📌 CLICK TO VIEW/EDIT TRADE NOTES", expanded=True):
+with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
     st.session_state.trade_notes = st.text_area(
-        "Strategic Notes (Liquidity, Delta, POI):",
+        "Paste Strategic Setup Here:",
         value=st.session_state.trade_notes,
-        height=200,
-        placeholder="Paste your 'What to do' and 'What not to do' here..."
+        height=400,  # Doubled size
+        placeholder="WHAT TO DO: Watch for Liquidity Sweep...\nWHAT NOT TO DO: No Panic Entry..."
     )
 
 # ---------------- 5M MICRO-CONFIRMATION ---------------- #
@@ -172,8 +172,7 @@ with col_exec:
     st.header("🚀 PHASE 3: EXECUTE")
     pip_factor = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
     
-    # Using 20 pips for Stop Loss as per your Strategy Plan
-    sl_distance_pips = 20
+    sl_distance_pips = 20  # Matches your "wide stops" strategy
     calc_sl = 0.0
     if zone_price > 0 and trade_dir != "Select...":
         calc_sl = zone_price - (sl_distance_pips * pip_factor) if trade_dir == "LONG 🔵" else zone_price + (sl_distance_pips * pip_factor)
@@ -186,16 +185,11 @@ with col_exec:
         if actual_pips_dist > 0:
             lot_size = (current_risk_usd / actual_pips_dist) / 10
             
-            # TP Calculations (1:2 and 1:3 RR)
+            # TP Levels
             tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
             tp2 = entry_val + (actual_pips_dist * 3 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 3 * pip_factor)
             
             m1, m2, m3 = st.columns(3)
             m1.metric("Lot Size", f"{round(lot_size, 2)}")
             m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}")
-            m3.metric("TP 2 (1:3)", f"{round(tp2, 2)}")
-            
-            st.write(f"📏 Dist: {round(actual_pips_dist, 1)} pips | 💵 Risk: ${round(current_risk_usd, 2)}")
-            
-            if m5_bos_ok: st.success("📈 BOS Confirmed")
-            if m5_mss_ok: st.info("🎯 MSS Confirmed")
+            m3.metric("TP
