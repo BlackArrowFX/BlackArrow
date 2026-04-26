@@ -1,12 +1,5 @@
 import streamlit as st
 from datetime import datetime
-import io
-
-# --- PDF LIBRARY IMPORT ---
-try:
-    from fpdf import FPDF
-except ImportError:
-    st.error("⚠️ PDF Library 'fpdf' not found. Please add 'fpdf' to your requirements.txt on GitHub.")
 
 # ---------------- 1. INITIALIZE GLOBAL STATE ---------------- #
 if "balance" not in st.session_state:
@@ -18,144 +11,186 @@ if "trade_notes" not in st.session_state:
 
 # ---------------- SETUP ---------------- #
 st.set_page_config(page_title="BlackArrowFX Precision Engine", layout="wide")
+
 now = datetime.now()
 dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 
-# ---------------- PDF REPORT GENERATOR ---------------- #
-class TradeReport(FPDF):
-    def header(self):
-        self.set_font('Arial', 'B', 16)
-        self.set_text_color(40, 40, 40)
-        self.cell(0, 10, 'BLACKARROWFX PRECISION REPORT', 0, 1, 'C')
-        self.set_font('Arial', 'I', 10)
-        self.cell(0, 10, f'Timestamp: {dt_string}', 0, 1, 'C')
-        self.ln(10)
-
-    def section_title(self, label):
-        self.set_font('Arial', 'B', 12)
-        self.set_fill_color(235, 235, 235)
-        self.cell(0, 8, label, 0, 1, 'L', 1)
-        self.ln(4)
-
-def create_pdf(data):
-    pdf = TradeReport()
-    pdf.add_page()
-    
-    # Section 1: Overview
-    pdf.section_title('1. INSTRUMENT & RISK')
-    pdf.set_font('Arial', '', 11)
-    pdf.cell(0, 7, f"Symbol: {data['symbol']}", 0, 1)
-    pdf.cell(0, 7, f"Direction: {data['direction']}", 0, 1)
-    pdf.cell(0, 7, f"Entry Price: {data['entry']}", 0, 1)
-    pdf.cell(0, 7, f"Stop Loss: {data['sl']}", 0, 1)
-    pdf.cell(0, 7, f"TP1 (1:2): {data['tp1']}", 0, 1)
-    pdf.ln(5)
-
-    # Section 2: Quad Timeframe Levels
-    pdf.section_title('2. QUAD TIMEFRAME ANALYSIS')
-    pdf.set_font('Arial', 'B', 10)
-    pdf.cell(30, 8, 'TF', 1, 0, 'C')
-    pdf.cell(40, 8, 'Bias', 1, 0, 'C')
-    pdf.cell(60, 8, 'Swing High', 1, 0, 'C')
-    pdf.cell(60, 8, 'Swing Low', 1, 0, 'C')
-    pdf.ln()
-    
-    pdf.set_font('Arial', '', 10)
-    tfs = [
-        ("4H", data['4h_b'], data['s4h'], data['s4l']),
-        ("1H", data['1h_b'], data['s1h'], data['s1l']),
-        ("30M", data['30m_b'], data['s30h'], data['s30l']),
-        ("15M", data['15m_b'], data['s15h'], data['s15l'])
-    ]
-    for tf, bias, hi, lo in tfs:
-        pdf.cell(30, 8, tf, 1, 0, 'C')
-        pdf.cell(40, 8, bias, 1, 0, 'C')
-        pdf.cell(60, 8, str(hi), 1, 0, 'C')
-        pdf.cell(60, 8, str(lo), 1, 0, 'C')
-        pdf.ln()
-    pdf.ln(5)
-
-    # Section 3: Notes
-    pdf.section_title('3. STRATEGY NOTES (POST-SHOCK)')
-    pdf.set_font('Arial', '', 10)
-    pdf.multi_cell(0, 7, data['notes'])
-    
-    return pdf.output(dest='S').encode('latin-1')
-
-# ---------------- SIDEBAR ---------------- #
+# ---------------- SIDEBAR: RISK & SYSTEM ---------------- #
 with st.sidebar:
     st.header("⚙️ System Config")
-    asset_type = st.selectbox("Asset Class", ["METAL (Gold/Silver)", "FOREX", "INDICES / CRYPTO"])
-    symbol = st.text_input("Instrument", value="XAUUSD").upper()
-    st.session_state.balance = st.number_input("Balance ($)", value=float(st.session_state.balance))
-    risk_usd = st.number_input("Risk ($)", value=50.0)
+    asset_type = st.selectbox("Select Asset Class", ["METAL (Gold/Silver)", "FOREX", "INDICES / CRYPTO"])
+    symbol = st.text_input("Enter Instrument", value="XAUUSD").upper()
+    
+    st.markdown("---")
+    st.header("💰 Risk Engine")
+    
+    st.session_state.balance = st.number_input(
+        "Current Balance ($)", 
+        value=float(st.session_state.balance), 
+        step=10.0, 
+        format="%.2f"
+    )
+    
+    risk_method = st.radio("Risk Method", ["Percentage (%)", "Fixed Amount ($)"])
+    if risk_method == "Percentage (%)":
+        risk_pct = st.slider("Risk per Trade (%)", 0.25, 10.0, 1.0)
+        current_risk_usd = st.session_state.balance * (risk_pct / 100)
+    else:
+        current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
 
-# ---------------- MAIN UI ---------------- #
-st.title(f"🏹 BlackArrowFX: {symbol}")
+    # ---------------- 2. NEWS FILTER ---------------- #
+    st.markdown("---")
+    st.header("🌍 News Filter")
+    news_ok = st.toggle("No High Impact News Active", value=False) 
+    
+    if not news_ok:
+        st.error("🚨 SYSTEM LOCKED: Confirm no news.")
+    else:
+        st.success("✅ News Cleared")
+
+    # ---------------- 3. THE JOURNAL COMPONENT ---------------- #
+    st.markdown("---")
+    st.header("📊 Daily Journal")
+    st.write(f"Trades Taken: **{st.session_state.trades_taken} / 3**")
+    limit_reached = st.session_state.trades_taken >= 3
+
+    if st.button("❌ RECORD LOSS", use_container_width=True, disabled=limit_reached):
+        st.session_state.balance -= current_risk_usd 
+        st.session_state.trades_taken += 1
+        st.rerun()
+
+    with st.expander("✅ RECORD WIN", expanded=False):
+        profit_made = st.number_input("Profit Made ($)", min_value=0.0, value=0.0, step=1.0)
+        if st.button("Add to Balance", use_container_width=True, disabled=limit_reached):
+            st.session_state.balance += profit_made
+            st.session_state.trades_taken += 1
+            st.rerun()
+
+    if st.button("Reset Daily Limits", use_container_width=True):
+        st.session_state.trades_taken = 0
+        st.rerun()
+
+# ---------------- MAIN INTERFACE ---------------- #
+st.title(f"🏹 BlackArrowFX: {symbol} Precision Engine")
+st.caption(f"Asset: {symbol} | Mode: {asset_type} | Server Time: {dt_string}")
 st.markdown("---")
 
-# ---------------- QUAD TIMEFRAME ---------------- #
+# ---------------- QUAD TIMEFRAME ANALYSIS ---------------- #
 c4h, c1h, c30m, c15m = st.columns(4)
+
 with c4h:
     st.subheader("⏳ 4H BIAS")
-    h4b = st.radio("4H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="h4")
-    s4h = st.number_input("4H High", format="%.2f", key="sh4")
-    s4l = st.number_input("4H Low", format="%.2f", key="sl4")
+    htf_bias = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", disabled=not news_ok)
+    h_lock = not news_ok or htf_bias == "Select..."
+    s4_h = st.number_input("Swing High", value=0.0, format="%.2f", key="s4h", disabled=h_lock)
+    s4_l = st.number_input("Swing Low", value=0.0, format="%.2f", key="s4l", disabled=h_lock)
+    bias_4h_ok = st.checkbox("4H Confirmed", key="4h_c", disabled=h_lock or not (s4_h > 0 and s4_l > 0))
+
 with c1h:
     st.subheader("⏱️ 1H STRUC")
-    h1b = st.radio("1H Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="h1")
-    s1h = st.number_input("1H High", format="%.2f", key="sh1")
-    s1l = st.number_input("1H Low", format="%.2f", key="sl1")
+    itf_trend = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", disabled=not bias_4h_ok)
+    i_lock = not bias_4h_ok or itf_trend == "Select..."
+    s1_h = st.number_input("1H High", value=0.0, format="%.2f", key="s1h", disabled=i_lock)
+    s1_l = st.number_input("1H Low", value=0.0, format="%.2f", key="s1l", disabled=i_lock)
+    bias_1h_ok = st.checkbox("1H Confirmed", key="1h_c", disabled=i_lock or not (s1_h > 0 and s1_l > 0))
+
 with c30m:
     st.subheader("⚡ 30M SHIFT")
-    h30b = st.radio("30M Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="h30")
-    s30h = st.number_input("30M High", format="%.2f", key="sh30")
-    s30l = st.number_input("30M Low", format="%.2f", key="sl30")
+    t30_trend = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="30m_t", disabled=not bias_1h_ok)
+    m30_lock = not bias_1h_ok or t30_trend == "Select..."
+    s30_h = st.number_input("30M High", value=0.0, format="%.2f", key="s30h", disabled=m30_lock)
+    s30_l = st.number_input("30M Low", value=0.0, format="%.2f", key="s30l", disabled=m30_lock)
+    bias_30m_ok = st.checkbox("30M Confirmed", key="30m_c", disabled=m30_lock or not (s30_h > 0 and s30_l > 0))
+
 with c15m:
     st.subheader("🎯 15M ENTRY")
-    h15b = st.radio("15M Trend", ["Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="h15")
-    s15h = st.number_input("15M High", format="%.2f", key="sh15")
-    s15l = st.number_input("15M Low", format="%.2f", key="sl15")
+    t15_trend = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="15m_t", disabled=not bias_30m_ok)
+    m15_lock = not bias_30m_ok or t15_trend == "Select..."
+    s15_h = st.number_input("15M High", value=0.0, format="%.2f", key="s15h", disabled=m15_lock)
+    s15_l = st.number_input("15M Low", value=0.0, format="%.2f", key="s15l", disabled=m15_lock)
+    bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15_h > 0 and s15_l > 0))
 
-# ---------------- STRATEGY BOX ---------------- #
+# ---------------- STRATEGY NOTES (DOUBLED SIZE & TOP OF 5M) ---------------- #
 st.markdown("---")
 st.subheader("📝 POST-SHOCK EXECUTION PLAN")
-st.session_state.trade_notes = st.text_area("Notes:", value=st.session_state.trade_notes, height=400)
+with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
+    st.session_state.trade_notes = st.text_area(
+        "Paste Strategic Setup Here:",
+        value=st.session_state.trade_notes,
+        height=400,
+        placeholder="WHAT TO DO: Watch for Liquidity Sweep...\nWHAT NOT TO DO: No Panic Entry..."
+    )
 
-# ---------------- EXECUTION & PDF ---------------- #
+# ---------------- 5M MICRO-CONFIRMATION ---------------- #
+st.subheader("⚡ 5M MICRO-CONFIRMATION")
+c5_1, c5_2, c5_3 = st.columns(3)
+
+with c5_1:
+    m5_trend = st.radio("5M Current Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="m5_t", disabled=not bias_15m_ok)
+    m5_lock = not bias_15m_ok or m5_trend == "Select..."
+
+with c5_2:
+    if m5_trend == "Bearish ⬇️":
+        label_bos = "BOS Price (LL to break)"
+        label_mss = "MSS Price (LH to break)"
+    else:
+        label_bos = "BOS Price (HH to break)"
+        label_mss = "MSS Price (HL to break)"
+    m5_bos_p = st.number_input(label_bos, value=0.0, format="%.2f", disabled=m5_lock)
+    m5_mss_p = st.number_input(label_mss, value=0.0, format="%.2f", disabled=m5_lock)
+
+with c5_3:
+    st.write("**Confirmation Type**")
+    m5_bos_ok = st.checkbox("BOS Confirmed", disabled=m5_bos_p == 0)
+    m5_mss_ok = st.checkbox("MSS Confirmed", disabled=m5_mss_p == 0)
+
+# ---------------- CONFLUENCE METER ---------------- #
 st.markdown("---")
-col_e, col_r = st.columns(2)
+confluences = [bias_4h_ok, bias_1h_ok, bias_30m_ok, bias_15m_ok, (m5_bos_ok or m5_mss_ok)]
+score = sum(confluences)
+progress = score / 5
 
-with col_e:
-    st.header("🚀 EXECUTION")
-    trade_dir = st.radio("Direction", ["LONG 🔵", "SHORT 🔴"], horizontal=True)
-    entry_val = st.number_input("Entry Price", value=0.0, format="%.2f")
-    sl_val = st.number_input("Stop Loss", value=0.0, format="%.2f")
+col_met, col_stat = st.columns([3, 1])
+with col_met:
+    st.progress(progress)
+with col_stat:
+    st.write(f"**Setup Strength: {int(progress*100)}%**")
+
+# ---------------- PHASE 2 & 3 ---------------- #
+st.markdown("---")
+system_unlocked = bias_15m_ok and news_ok
+
+col_poi, col_exec = st.columns([1, 2])
+
+with col_poi:
+    st.header("📋 PHASE 2: POI")
+    poi_type = st.selectbox("Trading Zone", ["Select...", "Swing High", "Swing Low", "Supply Zone", "Demand Zone", "Order Block", "FVG"], disabled=not system_unlocked)
+    zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f", disabled=not system_unlocked)
+    trade_dir = st.radio("Position Direction", ["Select...", "LONG 🔵", "SHORT 🔴"], horizontal=True, disabled=not system_unlocked)
+
+with col_exec:
+    st.header("🚀 PHASE 3: EXECUTE")
+    pip_factor = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
     
-    pip_f = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
-    tp1_val = 0
-    if entry_val > 0 and sl_val > 0:
-        pips = abs(entry_val - sl_val) / pip_f
-        tp1_val = entry_val + (pips * 2 * pip_f) if trade_dir == "LONG 🔵" else entry_val - (pips * 2 * pip_f)
-        st.write(f"**TP1 (1:2): {round(tp1_val, 2)}**")
+    sl_distance_pips = 20
+    calc_sl = 0.0
+    if zone_price > 0 and trade_dir != "Select...":
+        calc_sl = zone_price - (sl_distance_pips * pip_factor) if trade_dir == "LONG 🔵" else zone_price + (sl_distance_pips * pip_factor)
 
-with col_r:
-    st.header("📄 PDF ARCHIVE")
-    if st.button("PREPARE PDF REPORT"):
-        try:
-            rep_data = {
-                "symbol": symbol, "direction": trade_dir, "entry": entry_val, "sl": sl_val, "tp1": round(tp1_val, 2),
-                "4h_b": h4b, "s4h": s4h, "s4l": s4l, "1h_b": h1b, "s1h": s1h, "s1l": s1l,
-                "30m_b": h30b, "s30h": s30h, "s30l": s30l, "15m_b": h15b, "s15h": s15h, "s15l": s15l,
-                "notes": st.session_state.trade_notes
-            }
-            pdf_bytes = create_pdf(rep_data)
-            st.download_button(
-                label="📥 DOWNLOAD PDF REPORT",
-                data=pdf_bytes,
-                file_name=f"BlackArrow_Report_{symbol}.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
-        except Exception as e:
-            st.error(f"Error generating PDF: {e}")
+    sl_val = st.number_input(f"Stop Loss ({sl_distance_pips} Pips)", value=calc_sl, format="%.2f", disabled=not system_unlocked)
+    entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f", disabled=not system_unlocked)
+    
+    if entry_val > 0 and sl_val > 0 and trade_dir != "Select...":
+        actual_pips_dist = abs(entry_val - sl_val) / pip_factor
+        if actual_pips_dist > 0:
+            lot_size = (current_risk_usd / actual_pips_dist) / 10
+            
+            tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
+            tp2 = entry_val + (actual_pips_dist * 3 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 3 * pip_factor)
+            
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Lot Size", f"{round(lot_size, 2)}")
+            m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}")
+            m3.metric("TP 2 (1:3)", f"{round(tp2, 2)}")
+            
+            st.write(f"📏 Dist: {round(actual_pips_dist, 1)} pips | 💵 Risk: ${round(current_risk_usd, 2)}")
