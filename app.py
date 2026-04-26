@@ -7,31 +7,6 @@ if "balance" not in st.session_state:
 if "trades_taken" not in st.session_state:
     st.session_state.trades_taken = 0
 
-# New State for 5M Logic Persistence (Train Sterling Logic)
-if "m5_trend_val" not in st.session_state:
-    st.session_state.m5_trend_val = "Select..."
-if "m5_mss_p_val" not in st.session_state:
-    st.session_state.m5_mss_p_val = 0.0
-
-# ---------------- CALLBACK FUNCTIONS ---------------- #
-def handle_bos_click():
-    # Automatically untick the box after clicking to signal a new BOS is needed
-    st.session_state.m5_bos_tick = False
-
-def handle_mss_click():
-    # 1. Flip trend from Bullish to Bearish (and vice versa)
-    current = st.session_state.m5_t
-    if current == "Bullish ⬆️":
-        st.session_state.m5_trend_val = "Bearish ⬇️"
-    elif current == "Bearish ⬇️":
-        st.session_state.m5_trend_val = "Bullish ⬆️"
-    
-    # 2. Empty the MSS Price for the new trend
-    st.session_state.m5_mss_p_val = 0.0
-    
-    # 3. Auto untick the MSS box
-    st.session_state.m5_mss_tick = False
-
 # ---------------- SETUP ---------------- #
 st.set_page_config(page_title="BlackArrowFX Precision Engine", layout="wide")
 
@@ -47,6 +22,8 @@ with st.sidebar:
     st.markdown("---")
     st.header("💰 Risk Engine")
     
+    # --- UPDATED: MANUAL BALANCE INPUT ---
+    # This allows you to type in a new balance for withdrawals/deposits
     st.session_state.balance = st.number_input(
         "Current Balance ($)", 
         value=float(st.session_state.balance), 
@@ -104,10 +81,7 @@ c4h, c1h, c30m, c15m = st.columns(4)
 with c4h:
     st.subheader("⏳ 4H BIAS")
     htf_bias = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", disabled=not news_ok)
-    
-    # FIXED LOCK LOGIC: Strictly lock if news is not OK or if radio is on Select
-    h_lock = (not news_ok) or (htf_bias == "Select...")
-    
+    h_lock = not news_ok or htf_bias == "Select..."
     s4_h = st.number_input("Swing High", value=0.0, format="%.2f", key="s4h", disabled=h_lock)
     s4_l = st.number_input("Swing Low", value=0.0, format="%.2f", key="s4l", disabled=h_lock)
     bias_4h_ok = st.checkbox("4H Confirmed", key="4h_c", disabled=h_lock or not (s4_h > 0 and s4_l > 0))
@@ -136,21 +110,13 @@ with c15m:
     s15_l = st.number_input("15M Low", value=0.0, format="%.2f", key="s15l", disabled=m15_lock)
     bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15_h > 0 and s15_l > 0))
 
-# ---------------- 5M MICRO-CONFIRMATION (UPDATED) ---------------- #
+# ---------------- 5M MICRO-CONFIRMATION ---------------- #
 st.markdown("---")
 st.subheader("⚡ 5M MICRO-CONFIRMATION")
 c5_1, c5_2, c5_3 = st.columns(3)
 
 with c5_1:
-    trend_options = ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"]
-    m5_trend = st.radio(
-        "5M Current Trend", 
-        trend_options, 
-        key="m5_t", 
-        index=trend_options.index(st.session_state.m5_trend_val),
-        disabled=not bias_15m_ok
-    )
-    st.session_state.m5_trend_val = m5_trend
+    m5_trend = st.radio("5M Current Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="m5_t", disabled=not bias_15m_ok)
     m5_lock = not bias_15m_ok or m5_trend == "Select..."
 
 with c5_2:
@@ -160,24 +126,13 @@ with c5_2:
     else:
         label_bos = "BOS Price (HH to break)"
         label_mss = "MSS Price (HL to break)"
-    
-    m5_bos_p = st.number_input(label_bos, value=0.0, format="%.2f", key="m5_bos_input", disabled=m5_lock)
-    
-    m5_mss_p = st.number_input(
-        label_mss, 
-        value=st.session_state.m5_mss_p_val, 
-        format="%.2f", 
-        key="m5_mss_input_field",
-        disabled=m5_lock
-    )
-    st.session_state.m5_mss_p_val = m5_mss_p
+    m5_bos_p = st.number_input(label_bos, value=0.0, format="%.2f", disabled=m5_lock)
+    m5_mss_p = st.number_input(label_mss, value=0.0, format="%.2f", disabled=m5_lock)
 
 with c5_3:
     st.write("**Confirmation Type**")
-    # BOS: Auto-unticks via callback
-    m5_bos_ok = st.checkbox("BOS Confirmed", key="m5_bos_tick", on_change=handle_bos_click, disabled=m5_bos_p == 0)
-    # MSS: Flips trend, clears price, and auto-unticks via callback
-    m5_mss_ok = st.checkbox("MSS Confirmed", key="m5_mss_tick", on_change=handle_mss_click, disabled=m5_mss_p == 0)
+    m5_bos_ok = st.checkbox("BOS Confirmed", disabled=m5_bos_p == 0)
+    m5_mss_ok = st.checkbox("MSS Confirmed", disabled=m5_mss_p == 0)
 
 # ---------------- PHASE 2 & 3 ---------------- #
 st.markdown("---")
@@ -211,4 +166,3 @@ with col_exec:
             
             if m5_bos_ok: st.success("📈 BOS Confirmed")
             if m5_mss_ok: st.info("🎯 MSS Confirmed")
-            st.success("🔥 TRADE FULLY VALIDATED")
