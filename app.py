@@ -22,8 +22,6 @@ with st.sidebar:
     st.markdown("---")
     st.header("💰 Risk Engine")
     
-    # --- UPDATED: MANUAL BALANCE INPUT ---
-    # This allows you to type in a new balance for withdrawals/deposits
     st.session_state.balance = st.number_input(
         "Current Balance ($)", 
         value=float(st.session_state.balance), 
@@ -120,12 +118,15 @@ with c5_1:
     m5_lock = not bias_15m_ok or m5_trend == "Select..."
 
 with c5_2:
+    label_bos = "BOS Price"
+    label_mss = "MSS Price"
     if m5_trend == "Bearish ⬇️":
         label_bos = "BOS Price (LL to break)"
         label_mss = "MSS Price (LH to break)"
-    else:
+    elif m5_trend == "Bullish ⬆️":
         label_bos = "BOS Price (HH to break)"
         label_mss = "MSS Price (HL to break)"
+    
     m5_bos_p = st.number_input(label_bos, value=0.0, format="%.2f", disabled=m5_lock)
     m5_mss_p = st.number_input(label_mss, value=0.0, format="%.2f", disabled=m5_lock)
 
@@ -134,10 +135,35 @@ with c5_3:
     m5_bos_ok = st.checkbox("BOS Confirmed", disabled=m5_bos_p == 0)
     m5_mss_ok = st.checkbox("MSS Confirmed", disabled=m5_mss_p == 0)
 
-# ---------------- PHASE 2 & 3 ---------------- #
+# ---------------- PHASE 2.5: ORDER FLOW (NEW) ---------------- #
 st.markdown("---")
+st.header("🐋 PHASE 2.5: ORDER FLOW (FOOTPRINT)")
 system_unlocked = bias_15m_ok and news_ok
 
+c_of1, c_of2 = st.columns(2)
+with c_of1:
+    shark_type = st.radio(
+        "Absorption Detected?",
+        ["None", "Shark Buy (Absorbing Sells)", "Shark Sell (Absorbing Buys)"],
+        disabled=not system_unlocked
+    )
+
+with c_of2:
+    delta_strength = st.selectbox(
+        "Delta Strength",
+        ["Weak", "Moderate", "Strong"],
+        disabled=not system_unlocked
+    )
+
+# --- SMART LOGIC ---
+orderflow_ok = False
+if shark_type == "Shark Buy (Absorbing Sells)" and "Bullish" in htf_bias:
+    orderflow_ok = True
+elif shark_type == "Shark Sell (Absorbing Buys)" and "Bearish" in htf_bias:
+    orderflow_ok = True
+
+# ---------------- PHASE 2 & 3 ---------------- #
+st.markdown("---")
 col_poi, col_exec = st.columns([1, 2])
 
 with col_poi:
@@ -159,10 +185,15 @@ with col_exec:
     
     if entry_val > 0 and sl_val > 0 and trade_dir != "Select...":
         pips_dist = abs(entry_val - sl_val) / pip_factor
-        if pips_dist > 0:
+        
+        # FINAL VALIDATION GATE
+        if not orderflow_ok:
+            st.warning("⚠️ WAIT: No institutional confirmation (Order Flow)")
+        elif pips_dist > 0:
             lot_size = (current_risk_usd / pips_dist) / 10
             st.metric("Calculated Lot Size", f"{round(lot_size, 2)}")
             st.write(f"📏 Dist: {round(pips_dist, 1)} pips | 💵 Risk: ${round(current_risk_usd, 2)}")
             
             if m5_bos_ok: st.success("📈 BOS Confirmed")
             if m5_mss_ok: st.info("🎯 MSS Confirmed")
+            st.success("🔥 TRADE FULLY VALIDATED")
