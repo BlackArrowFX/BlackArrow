@@ -7,13 +7,30 @@ if "balance" not in st.session_state:
 if "trades_taken" not in st.session_state:
     st.session_state.trades_taken = 0
 
-# --- NEW 5M DYNAMIC STATES ---
+# New State for 5M Logic Persistence
 if "m5_trend_val" not in st.session_state:
     st.session_state.m5_trend_val = "Select..."
-if "m5_bos_price" not in st.session_state:
-    st.session_state.m5_bos_price = 0.0
-if "m5_mss_price" not in st.session_state:
-    st.session_state.m5_mss_price = 0.0
+if "m5_mss_p_val" not in st.session_state:
+    st.session_state.m5_mss_p_val = 0.0
+
+# ---------------- CALLBACK FUNCTIONS ---------------- #
+def handle_bos_click():
+    # Automatically untick the box after clicking
+    st.session_state.m5_bos_tick = False
+
+def handle_mss_click():
+    # 1. Flip trend from Bullish to Bearish (and vice versa)
+    current = st.session_state.m5_t
+    if current == "Bullish ⬆️":
+        st.session_state.m5_trend_val = "Bearish ⬇️"
+    elif current == "Bearish ⬇️":
+        st.session_state.m5_trend_val = "Bullish ⬆️"
+    
+    # 2. Empty the MSS Price
+    st.session_state.m5_mss_p_val = 0.0
+    
+    # 3. Auto untick the MSS box
+    st.session_state.m5_mss_tick = False
 
 # ---------------- SETUP ---------------- #
 st.set_page_config(page_title="BlackArrowFX Precision Engine", layout="wide")
@@ -116,60 +133,50 @@ with c15m:
     s15_l = st.number_input("15M Low", value=0.0, format="%.2f", key="s15l", disabled=m15_lock)
     bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15_h > 0 and s15_l > 0))
 
-# ---------------- ⚡ 5M MICRO-CONFIRMATION (DYNAMIC) ---------------- #
+# ---------------- 5M MICRO-CONFIRMATION (ENHANCED) ---------------- #
 st.markdown("---")
 st.subheader("⚡ 5M MICRO-CONFIRMATION")
 c5_1, c5_2, c5_3 = st.columns(3)
 
 with c5_1:
-    trend_list = ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"]
-    curr_idx = trend_list.index(st.session_state.m5_trend_val)
-    
+    trend_options = ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"]
     m5_trend = st.radio(
         "5M Current Trend", 
-        trend_list, 
-        index=curr_idx,
-        key="m5_t_radio", 
+        trend_options, 
+        key="m5_t", 
+        index=trend_options.index(st.session_state.m5_trend_val),
         disabled=not bias_15m_ok
     )
     st.session_state.m5_trend_val = m5_trend
     m5_lock = not bias_15m_ok or m5_trend == "Select..."
 
 with c5_2:
+    label_bos = "BOS Price"
+    label_mss = "MSS Price"
     if m5_trend == "Bearish ⬇️":
         label_bos = "BOS Price (LL to break)"
         label_mss = "MSS Price (LH to break)"
-    else:
+    elif m5_trend == "Bullish ⬆️":
         label_bos = "BOS Price (HH to break)"
         label_mss = "MSS Price (HL to break)"
     
-    m5_bos_p = st.number_input(label_bos, value=st.session_state.m5_bos_price, format="%.2f", disabled=m5_lock)
-    m5_mss_p = st.number_input(label_mss, value=st.session_state.m5_mss_price, format="%.2f", disabled=m5_lock)
+    m5_bos_p = st.number_input(label_bos, value=0.0, format="%.2f", key="m5_bos_input", disabled=m5_lock)
     
-    st.session_state.m5_bos_price = m5_bos_p
-    st.session_state.m5_mss_price = m5_mss_p
+    m5_mss_p = st.number_input(
+        label_mss, 
+        value=st.session_state.m5_mss_p_val, 
+        format="%.2f", 
+        key="m5_mss_input_field",
+        disabled=m5_lock
+    )
+    st.session_state.m5_mss_p_val = m5_mss_p
 
 with c5_3:
-    st.write("**Confirmation Action**")
-    m5_bos_ok = st.checkbox("BOS Confirmed", key="bos_check", disabled=m5_bos_p == 0)
-    m5_mss_ok = st.checkbox("MSS Confirmed", key="mss_check", disabled=m5_mss_p == 0)
+    st.write("**Confirmation Type**")
+    m5_bos_ok = st.checkbox("BOS Confirmed", key="m5_bos_tick", on_change=handle_bos_click, disabled=m5_bos_p == 0)
+    m5_mss_ok = st.checkbox("MSS Confirmed", key="m5_mss_tick", on_change=handle_mss_click, disabled=m5_mss_p == 0)
 
-    # DYNAMIC LOGIC
-    if m5_bos_ok:
-        st.session_state.m5_bos_price = 0.0
-        st.toast("✅ BOS Logged. Price Reset.")
-        st.rerun()
-
-    if m5_mss_ok:
-        if st.session_state.m5_trend_val == "Bullish ⬆️":
-            st.session_state.m5_trend_val = "Bearish ⬇️"
-        elif st.session_state.m5_trend_val == "Bearish ⬇️":
-            st.session_state.m5_trend_val = "Bullish ⬆️"
-        st.session_state.m5_mss_price = 0.0
-        st.toast("🔄 Trend Flipped & MSS Reset!")
-        st.rerun()
-
-# ---------------- PHASE 2.5: ORDER FLOW (FOOTPRINT) ---------------- #
+# ---------------- PHASE 2.5: ORDER FLOW (NEW) ---------------- #
 st.markdown("---")
 st.header("🐋 PHASE 2.5: ORDER FLOW (FOOTPRINT)")
 system_unlocked = bias_15m_ok and news_ok
@@ -228,4 +235,6 @@ with col_exec:
             st.metric("Calculated Lot Size", f"{round(lot_size, 2)}")
             st.write(f"📏 Dist: {round(pips_dist, 1)} pips | 💵 Risk: ${round(current_risk_usd, 2)}")
             
+            if m5_bos_ok: st.success("📈 BOS Confirmed")
+            if m5_mss_ok: st.info("🎯 MSS Confirmed")
             st.success("🔥 TRADE FULLY VALIDATED")
