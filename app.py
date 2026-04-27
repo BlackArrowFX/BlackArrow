@@ -44,7 +44,6 @@ with st.sidebar:
     st.markdown("---")
     st.header("🌍 News Filter")
     
-    # NEW: Link to Forex Factory
     st.link_button("📊 Check Forex Factory", "https://www.forexfactory.com/", use_container_width=True)
     
     news_ok = st.toggle("No High Impact News Active", value=False) 
@@ -188,15 +187,19 @@ with col_exec:
             tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
             tp2 = entry_val + (actual_pips_dist * 3 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 3 * pip_factor)
             be_price = entry_val 
+
+            # --- CALCULATE POTENTIAL PROFIT ---
+            profit_tp1 = current_risk_usd * 2
+            profit_tp2 = current_risk_usd * 3
             
             # --- DISPLAY ---
             m1, m2, m3 = st.columns(3)
             m1.metric("Lot Size", f"{round(lot_size, 2)}")
-            m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}")
-            m3.metric("TP 2 (1:3)", f"{round(tp2, 2)}")
+            m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}", delta=f"+${round(profit_tp1, 2)}")
+            m3.metric("TP 2 (1:3)", f"{round(tp2, 2)}", delta=f"+${round(profit_tp2, 2)}")
             
             # --- SECURITY PROTOCOL NOTE ---
-            st.info(f"🛡️ **SECURITY PROTOCOL:** At **{round(tp1, 2)}**, take 50% partials and move SL to BE (**{round(be_price, 2)}**).")
+            st.info(f"🛡️ **SECURITY PROTOCOL:** At **{round(tp1, 2)}**, take 50% partials (+${round(profit_tp1/2, 2)}) and move SL to BE (**{round(be_price, 2)}**).")
             
             st.write(f"📏 Dist: {round(actual_pips_dist, 1)} pips | 💵 Risk: ${round(current_risk_usd, 2)}")
 
