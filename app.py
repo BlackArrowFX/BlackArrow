@@ -207,31 +207,31 @@ with col_exec:
 st.markdown("---")
 st.header("📂 Session Trade Log & Reports")
 
+# EMERGENCY CLEAR BUTTON (Always Visible)
+if st.button("🧨 EMERGENCY: CLEAR ALL DATA & FIX ERROR", use_container_width=True):
+    st.session_state.trade_history = []
+    st.rerun()
+
 if st.session_state.trade_history:
     df_log = pd.DataFrame(st.session_state.trade_history)
     
-    # 1. Standard Table View
     st.subheader("📜 History Overview")
     st.dataframe(df_log, use_container_width=True)
 
-    # 2. Detailed Aligned Report for the Last Trade
     st.markdown("---")
     st.subheader("📑 Detailed Execution Report (Last Entry)")
     
     last = st.session_state.trade_history[-1]
     rep1, rep2, rep3 = st.columns(3)
     
+    # Use .get() to prevent "KeyError" crashes if data is missing
     with rep1:
-        st.markdown(f"**CORE DATA**\n- Asset: `{last['Asset']}`\n- Dir: `{last['Dir']}`\n- Entry: `{last['Entry']}`\n- Lots: `{last['Lots']}`")
+        st.markdown(f"**CORE DATA**\n- Asset: `{last.get('Asset', 'N/A')}`\n- Dir: `{last.get('Dir', 'N/A')}`\n- Entry: `{last.get('Entry', 'N/A')}`\n- Lots: `{last.get('Lots', 'N/A')}`")
     with rep2:
-        st.markdown(f"**SWING LEVELS**\n- 4H: `{last['4H_Range']}`\n- 1H: `{last['1H_Range']}`\n- 30M: `{last['30M_Range']}`\n- 15M: `{last['15M_Range']}`")
+        st.markdown(f"**SWING LEVELS**\n- 4H: `{last.get('4H_Range', 'N/A')}`\n- 1H: `{last.get('1H_Range', 'N/A')}`\n- 30M: `{last.get('30M_Range', 'N/A')}`\n- 15M: `{last.get('15M_Range', 'N/A')}`")
     with rep3:
-        st.markdown(f"**TARGETS**\n- SL: `{last['SL']}`\n- TP1/BE: `{last['TP1_BE']}`\n- POI: `{last['POI']}`")
+        st.markdown(f"**TARGETS**\n- SL: `{last.get('SL', 'N/A')}`\n- TP1/BE: `{last.get('TP1_BE', 'N/A')}`\n- POI: `{last.get('POI', 'N/A')}`")
     
-    st.info(f"**📝 STRATEGIC PLAN AT ENTRY:**\n\n{last['Notes']}")
-
-    if st.button("🧨 CLEAR ALL LOGS", use_container_width=True):
-        st.session_state.trade_history = []
-        st.rerun()
+    st.info(f"**📝 STRATEGIC PLAN AT ENTRY:**\n\n{last.get('Notes', 'No notes recorded.')}")
 else:
-    st.write("No trades logged yet.")
+    st.info("No trades logged yet. Save a trade to see the report.")
