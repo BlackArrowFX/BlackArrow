@@ -13,7 +13,6 @@ if "trade_history" not in st.session_state:
     st.session_state.trade_history = []
 
 # --- PERSISTENT SWING LEVELS ---
-# These lines ensure your Highs/Lows stay saved even after clicking "Save"
 levels = ["s4h", "s4l", "s1h", "s1l", "s30h", "s30l", "s15h", "s15l"]
 for level in levels:
     if level not in st.session_state:
@@ -91,10 +90,9 @@ with c4h:
     st.subheader("⏳ 4H BIAS")
     htf_bias = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", disabled=not news_ok)
     h_lock = not news_ok or htf_bias == "Select..."
-    # Linked to session state to keep value
     st.session_state.s4h = st.number_input("Swing High", value=st.session_state.s4h, format="%.2f", disabled=h_lock)
     st.session_state.s4l = st.number_input("Swing Low", value=st.session_state.s4l, format="%.2f", disabled=h_lock)
-    bias_4h_ok = st.checkbox("4H Confirmed", key="4h_c", disabled=h_lock or not (st.session_state.s4h > 0 and st.session_state.s4l > 0))
+    bias_4h_ok = st.checkbox("4H Confirmed", key="4h_c", disabled=h_lock or not (st.session_state.s4h > 0))
 
 with c1h:
     st.subheader("⏱️ 1H STRUC")
@@ -102,7 +100,7 @@ with c1h:
     i_lock = not bias_4h_ok or itf_trend == "Select..."
     st.session_state.s1h = st.number_input("1H High", value=st.session_state.s1h, format="%.2f", disabled=i_lock)
     st.session_state.s1l = st.number_input("1H Low", value=st.session_state.s1l, format="%.2f", disabled=i_lock)
-    bias_1h_ok = st.checkbox("1H Confirmed", key="1h_c", disabled=i_lock or not (st.session_state.s1h > 0 and st.session_state.s1l > 0))
+    bias_1h_ok = st.checkbox("1H Confirmed", key="1h_c", disabled=i_lock or not (st.session_state.s1h > 0))
 
 with c30m:
     st.subheader("⚡ 30M SHIFT")
@@ -110,7 +108,7 @@ with c30m:
     m30_lock = not bias_1h_ok or t30_trend == "Select..."
     st.session_state.s30h = st.number_input("30M High", value=st.session_state.s30h, format="%.2f", disabled=m30_lock)
     st.session_state.s30l = st.number_input("30M Low", value=st.session_state.s30l, format="%.2f", disabled=m30_lock)
-    bias_30m_ok = st.checkbox("30M Confirmed", key="30m_c", disabled=m30_lock or not (st.session_state.s30h > 0 and st.session_state.s30l > 0))
+    bias_30m_ok = st.checkbox("30M Confirmed", key="30m_c", disabled=m30_lock or not (st.session_state.s30h > 0))
 
 with c15m:
     st.subheader("🎯 15M ENTRY")
@@ -118,7 +116,7 @@ with c15m:
     m15_lock = not bias_30m_ok or t15_trend == "Select..."
     st.session_state.s15h = st.number_input("15M High", value=st.session_state.s15h, format="%.2f", disabled=m15_lock)
     st.session_state.s15l = st.number_input("15M Low", value=st.session_state.s15l, format="%.2f", disabled=m15_lock)
-    bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (st.session_state.s15h > 0 and st.session_state.s15l > 0))
+    bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (st.session_state.s15h > 0))
 
 # ---------------- STRATEGY NOTES ---------------- #
 st.markdown("---")
@@ -127,38 +125,30 @@ with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
     st.session_state.trade_notes = st.text_area(
         "Paste Strategic Setup Here:",
         value=st.session_state.trade_notes,
-        height=300,
+        height=200,
         placeholder="WHAT TO DO: Watch for Liquidity Sweep...\nWHAT NOT TO DO: No Panic Entry..."
     )
 
 # ---------------- 5M MICRO-CONFIRMATION ---------------- #
 st.subheader("⚡ 5M MICRO-CONFIRMATION")
 c5_1, c5_2, c5_3 = st.columns(3)
-
 with c5_1:
     m5_trend = st.radio("5M Current Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="m5_t", disabled=not bias_15m_ok)
     m5_lock = not bias_15m_ok or m5_trend == "Select..."
-
 with c5_2:
     m5_bos_p = st.number_input("BOS Price", value=0.0, format="%.2f", disabled=m5_lock)
     m5_mss_p = st.number_input("MSS Price", value=0.0, format="%.2f", disabled=m5_lock)
-
 with c5_3:
     st.write("**Confirmation Type**")
     m5_bos_ok = st.checkbox("BOS Confirmed", disabled=m5_bos_p == 0)
     m5_mss_ok = st.checkbox("MSS Confirmed", disabled=m5_mss_p == 0)
 
 # ---------------- CONFLUENCE METER ---------------- #
-st.markdown("---")
 confluences = [bias_4h_ok, bias_1h_ok, bias_30m_ok, bias_15m_ok, (m5_bos_ok or m5_mss_ok)]
 score = sum(confluences)
 progress = score / 5
-
-col_met, col_stat = st.columns([3, 1])
-with col_met:
-    st.progress(progress)
-with col_stat:
-    st.write(f"**Setup Strength: {int(progress*100)}%**")
+st.progress(progress)
+st.write(f"**Setup Strength: {int(progress*100)}%**")
 
 # ---------------- PHASE 2 & 3 ---------------- #
 st.markdown("---")
@@ -188,35 +178,60 @@ with col_exec:
             lot_size = (current_risk_usd / actual_pips_dist) / 10
             tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
             tp2 = entry_val + (actual_pips_dist * 3 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 3 * pip_factor)
-            be_price = entry_val 
-            profit_tp1 = current_risk_usd * 2
-            profit_tp2 = current_risk_usd * 3
             
             m1, m2, m3 = st.columns(3)
             m1.metric("Lot Size", f"{round(lot_size, 2)}")
-            m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}", delta=f"+${round(profit_tp1, 2)}")
-            m3.metric("TP 2 (1:3)", f"{round(tp2, 2)}", delta=f"+${round(profit_tp2, 2)}")
-            st.info(f"🛡️ **SECURITY PROTOCOL:** At **{round(tp1, 2)}**, take 50% partials (+${round(profit_tp1/2, 2)}) and move SL to BE (**{round(be_price, 2)}**).")
+            m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}")
+            m3.metric("TP 2 (1:3)", f"{round(tp2, 2)}")
 
             if st.button("💾 SAVE TRADE DETAILS", use_container_width=True):
                 trade_data = {
-                    "Time": dt_string, "Asset": symbol, "Dir": trade_dir,
-                    "4H": f"{st.session_state.s4h}/{st.session_state.s4l}",
-                    "1H": f"{st.session_state.s1h}/{st.session_state.s1l}",
-                    "30M": f"{st.session_state.s30h}/{st.session_state.s30l}",
-                    "15M": f"{st.session_state.s15h}/{st.session_state.s15l}",
-                    "POI": f"{poi_type} @ {zone_price}", "Lots": round(lot_size, 2),
-                    "Entry": entry_val, "TP1/BE": f"{round(tp1, 2)} / {round(be_price, 2)}"
+                    "Time": dt_string, 
+                    "Asset": symbol, 
+                    "Dir": trade_dir,
+                    "4H_Range": f"H:{st.session_state.s4h} | L:{st.session_state.s4l}",
+                    "1H_Range": f"H:{st.session_state.s1h} | L:{st.session_state.s1l}",
+                    "30M_Range": f"H:{st.session_state.s30h} | L:{st.session_state.s30l}",
+                    "15M_Range": f"H:{st.session_state.s15h} | L:{st.session_state.s15l}",
+                    "POI": f"{poi_type} @ {zone_price}", 
+                    "Lots": round(lot_size, 2),
+                    "Entry": entry_val, 
+                    "SL": sl_val,
+                    "TP1_BE": f"{round(tp1, 2)}",
+                    "Notes": st.session_state.trade_notes
                 }
                 st.session_state.trade_history.append(trade_data)
                 st.toast("Trade Secured and Logged!")
 
-# ---------------- 📊 SESSION LOG ---------------- #
+# ---------------- 📊 SESSION LOG & ALIGNED REPORT ---------------- #
 st.markdown("---")
-st.header("📂 Session Trade Log")
+st.header("📂 Session Trade Log & Reports")
+
 if st.session_state.trade_history:
     df_log = pd.DataFrame(st.session_state.trade_history)
+    
+    # 1. Standard Table View
+    st.subheader("📜 History Overview")
     st.dataframe(df_log, use_container_width=True)
-    if st.button("🧨 CLEAR ALL", use_container_width=True):
+
+    # 2. Detailed Aligned Report for the Last Trade
+    st.markdown("---")
+    st.subheader("📑 Detailed Execution Report (Last Entry)")
+    
+    last = st.session_state.trade_history[-1]
+    rep1, rep2, rep3 = st.columns(3)
+    
+    with rep1:
+        st.markdown(f"**CORE DATA**\n- Asset: `{last['Asset']}`\n- Dir: `{last['Dir']}`\n- Entry: `{last['Entry']}`\n- Lots: `{last['Lots']}`")
+    with rep2:
+        st.markdown(f"**SWING LEVELS**\n- 4H: `{last['4H_Range']}`\n- 1H: `{last['1H_Range']}`\n- 30M: `{last['30M_Range']}`\n- 15M: `{last['15M_Range']}`")
+    with rep3:
+        st.markdown(f"**TARGETS**\n- SL: `{last['SL']}`\n- TP1/BE: `{last['TP1_BE']}`\n- POI: `{last['POI']}`")
+    
+    st.info(f"**📝 STRATEGIC PLAN AT ENTRY:**\n\n{last['Notes']}")
+
+    if st.button("🧨 CLEAR ALL LOGS", use_container_width=True):
         st.session_state.trade_history = []
         st.rerun()
+else:
+    st.write("No trades logged yet.")
