@@ -21,7 +21,8 @@ dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 # ---------------- SIDEBAR: RISK & SYSTEM ---------------- #
 with st.sidebar:
     st.header("⚙️ System Config")
-    asset_type = st.selectbox("Select Asset Class", ["METAL (Gold/Silver)", "FOREX", "INDICES / CRYPTO"])
+    # Set default to METAL and XAUUSD as requested
+    asset_type = st.selectbox("Select Asset Class", ["METAL (Gold/Silver)", "FOREX", "INDICES / CRYPTO"], index=0)
     symbol = st.text_input("Enter Instrument", value="XAUUSD").upper()
     
     st.markdown("---")
@@ -77,6 +78,35 @@ with st.sidebar:
 # ---------------- MAIN INTERFACE ---------------- #
 st.title(f"🏹 BlackArrowFX: {symbol} Precision Engine")
 st.caption(f"Asset: {symbol} | Mode: {asset_type} | Server Time: {dt_string}")
+
+# ---------------- NEW PERMANENT TRADING PLAN SECTION ---------------- #
+with st.expander("📜 MY PERMANENT TRADING PLAN", expanded=False):
+    st.markdown("""
+    ### 1. Market Structure Analysis
+    * **1H:** Analyze overall market structure.
+    * **15M:** Confirm short-term direction and intraday zones.
+    * **5M:** Precise entry execution.
+    * *Identify: Trend direction, BoS, Liquidity zones, and Reversal areas.*
+
+    ### 2. BlackArrowFX Strategic Setup
+    * Confirm and mark all **Swing Highs and Swing Lows** on every timeframe.
+    * Ensure setup aligns with HTF bias before execution (POI & Key Levels).
+
+    ### 3. BlackArrowClick Execution
+    * Select **Fixed Lot** or **Risk Amount** before placing trade.
+    * Pre-plan entry price and double-check **SL/TP** levels.
+
+    ### 4. Risk Management
+    * **Max Risk:** 3% to 5% or **$100 maximum**.
+    * Maintain discipline; never exceed daily limits.
+
+    ### 5. Footprint Monitoring (15M/30M)
+    * Watch major reversal zones for absorption and trapped traders.
+    * **Delta Check:** Look for 1,000+ Delta (15M) | 1,500 ticks per row.
+    
+    **Final Rule:** Only execute when Structure + POI + Footprint + Risk are aligned.
+    """)
+
 st.markdown("---")
 
 # ---------------- QUAD TIMEFRAME ANALYSIS ---------------- #
@@ -203,7 +233,7 @@ with col_exec:
                     "Lots": round(lot_size, 2),
                     "Entry": entry_val,
                     "TP1/BE": f"{round(tp1, 2)} / {round(be_price, 2)}",
-                    "Plan": st.session_state.trade_notes # Saved separately for the text area
+                    "Plan": st.session_state.trade_notes
                 }
                 st.session_state.trade_history.append(trade_data)
                 st.toast("Trade Logged!")
@@ -213,23 +243,19 @@ st.markdown("---")
 st.header("📂 Session Trade Log")
 
 if st.session_state.trade_history:
-    # 1. Prepare data for the table (Exclude the Plan)
     display_data = []
     for t in st.session_state.trade_history:
-        # Create a copy without the "Plan" for the DataFrame view
         table_row = {k: v for k, v in t.items() if k != "Plan"}
         display_data.append(table_row)
     
     df_log = pd.DataFrame(display_data)
-    st.table(df_log) # Using st.table for a clean, non-interactive look as requested
+    st.table(df_log)
 
-    # 2. Display the Plan below the table
     st.subheader("📜 Execution Plans & Notes")
     for i, trade in enumerate(st.session_state.trade_history):
         with st.expander(f"Plan for Trade #{i+1} ({trade['Asset']} @ {trade['Time']})"):
             st.write(trade['Plan'])
 
-    # 3. Actions
     c_del1, c_del2, c_dl = st.columns([1, 1, 2])
     with c_del1:
         if st.button("🗑️ DELETE LAST", use_container_width=True):
