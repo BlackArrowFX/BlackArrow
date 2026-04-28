@@ -80,7 +80,7 @@ st.title(f"🏹 BlackArrowFX: {symbol} Precision Engine")
 st.caption(f"Asset: {symbol} | Mode: {asset_type} | Server Time: {dt_string}")
 
 # ---------------- NEW PERMANENT TRADING PLAN SECTION ---------------- #
-with st.expander("📜 MY PERMANENT TRADING PLAN", expanded=False):
+with st.expander("📜 MY TRADING PLAN", expanded=False):
     st.markdown("""
     ### 1. Market Structure Analysis
     * **1H:** Analyze overall market structure.
