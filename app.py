@@ -13,7 +13,7 @@ if "trade_history" not in st.session_state:
     st.session_state.trade_history = []
 
 # ---------------- SETUP ---------------- #
-st.set_page_config(page_title="BlackArrowFX Precision Engine", layout="wide")
+st.set_page_config(page_title="BlackArrowFX Precision Engine", layout="wide", page_icon="🏹")
 
 now = datetime.now()
 dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
@@ -43,9 +43,7 @@ with st.sidebar:
 
     st.markdown("---")
     st.header("🌍 News Filter")
-    
     st.link_button("📊 Check Forex Factory", "https://www.forexfactory.com/", use_container_width=True)
-    
     news_ok = st.toggle("No High Impact News Active", value=False) 
     
     if not news_ok:
@@ -121,7 +119,7 @@ with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
     st.session_state.trade_notes = st.text_area(
         "Paste Strategic Setup Here:",
         value=st.session_state.trade_notes,
-        height=300,
+        height=200,
         placeholder="WHAT TO DO: Watch for Liquidity Sweep...\nWHAT NOT TO DO: No Panic Entry..."
     )
 
@@ -134,10 +132,8 @@ with c5_1:
     m5_lock = not bias_15m_ok or m5_trend == "Select..."
 
 with c5_2:
-    label_bos = "BOS Price"
-    label_mss = "MSS Price"
-    m5_bos_p = st.number_input(label_bos, value=0.0, format="%.2f", disabled=m5_lock)
-    m5_mss_p = st.number_input(label_mss, value=0.0, format="%.2f", disabled=m5_lock)
+    m5_bos_p = st.number_input("BOS Price", value=0.0, format="%.2f", disabled=m5_lock)
+    m5_mss_p = st.number_input("MSS Price", value=0.0, format="%.2f", disabled=m5_lock)
 
 with c5_3:
     st.write("**Confirmation Type**")
@@ -169,44 +165,43 @@ with col_poi:
 
 with col_exec:
     st.header("🚀 PHASE 3: EXECUTE")
+    # Dynamic Pip Calculation
     pip_factor = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
     sl_distance_pips = 20
     calc_sl = 0.0
+    
     if zone_price > 0 and trade_dir != "Select...":
-        calc_sl = zone_price - (sl_distance_pips * pip_factor) if trade_dir == "LONG 🔵" else zone_price + (sl_distance_pips * pip_factor)
+        if trade_dir == "LONG 🔵":
+            calc_sl = zone_price - (sl_distance_pips * pip_factor)
+        else:
+            calc_sl = zone_price + (sl_distance_pips * pip_factor)
 
     sl_val = st.number_input(f"Stop Loss ({sl_distance_pips} Pips)", value=calc_sl, format="%.2f", disabled=not system_unlocked)
     entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f", disabled=not system_unlocked)
     
     if entry_val > 0 and sl_val > 0 and trade_dir != "Select...":
         actual_pips_dist = abs(entry_val - sl_val) / pip_factor
+        
         if actual_pips_dist > 0:
+            # Lot size calculation (Risk / Dist / 10 for standard lots)
             lot_size = (current_risk_usd / actual_pips_dist) / 10
             
-            # --- CALCULATE TP & BE ---
             tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
             tp2 = entry_val + (actual_pips_dist * 3 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 3 * pip_factor)
             be_price = entry_val 
 
-            # --- CALCULATE POTENTIAL PROFIT ---
             profit_tp1 = current_risk_usd * 2
             profit_tp2 = current_risk_usd * 3
             
-            # --- DISPLAY ---
             m1, m2, m3 = st.columns(3)
             m1.metric("Lot Size", f"{round(lot_size, 2)}")
             m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}", delta=f"+${round(profit_tp1, 2)}")
             m3.metric("TP 2 (1:3)", f"{round(tp2, 2)}", delta=f"+${round(profit_tp2, 2)}")
             
-            # --- SECURITY PROTOCOL NOTE ---
-            st.info(f"🛡️ **SECURITY PROTOCOL:** At **{round(tp1, 2)}**, take 50% partials (+${round(profit_tp1/2, 2)}) and move SL to BE (**{round(be_price, 2)}**).")
-            
-            st.write(f"📏 Dist: {round(actual_pips_dist, 1)} pips | 💵 Risk: ${round(current_risk_usd, 2)}")
+            st.info(f"🛡️ **SECURITY PROTOCOL:** At **{round(tp1, 2)}**, take 50% partials and move SL to BE (**{round(be_price, 2)}**).")
+            st.write(f"📏 Distance: {round(actual_pips_dist, 1)} pips | 💵 Total Risk: ${round(current_risk_usd, 2)}")
 
-            # --- SAVE BUTTON ---
             if st.button("💾 SAVE TRADE DETAILS", use_container_width=True):
-                clean_plan = st.session_state.trade_notes.replace("\n", " | ")
-                
                 trade_data = {
                     "Time": dt_string,
                     "Asset": symbol,
@@ -219,30 +214,40 @@ with col_exec:
                     "Lots": round(lot_size, 2),
                     "Entry": entry_val,
                     "TP1/BE": f"{round(tp1, 2)} / {round(be_price, 2)}",
-                    "Plan": clean_plan
+                    "Plan": st.session_state.trade_notes
                 }
                 st.session_state.trade_history.append(trade_data)
-                st.toast("Trade Secured and Logged!")
+                st.toast("Trade Logged Successfully!")
 
 # ---------------- 📊 SESSION LOG ---------------- #
 st.markdown("---")
 st.header("📂 Session Trade Log")
+
 if st.session_state.trade_history:
-    df_log = pd.DataFrame(st.session_state.trade_history)
-    st.dataframe(df_log, use_container_width=True)
+    # Separate technical data for the table
+    df_full = pd.DataFrame(st.session_state.trade_history)
     
+    # Display the table WITHOUT the "Plan" column to keep it clean
+    df_display = df_full.drop(columns=["Plan"])
+    st.dataframe(df_display, use_container_width=True)
+    
+    # Display the Plan below the table for each trade
+    for index, trade in enumerate(st.session_state.trade_history):
+        with st.expander(f"📜 PLAN FOR TRADE #{index + 1} ({trade['Asset']} {trade['Dir']})"):
+            st.write(trade["Plan"])
+    
+    # Controls
     c_del1, c_del2, c_dl = st.columns([1, 1, 2])
     with c_del1:
         if st.button("🗑️ DELETE LAST", use_container_width=True):
-            if st.session_state.trade_history:
-                st.session_state.trade_history.pop()
-                st.rerun()
+            st.session_state.trade_history.pop()
+            st.rerun()
     with c_del2:
         if st.button("🧨 CLEAR ALL", use_container_width=True):
             st.session_state.trade_history = []
             st.rerun()
     with c_dl:
-        csv = df_log.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
+        csv = df_full.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
         st.download_button(
             label="📥 DOWNLOAD CSV",
             data=csv,
