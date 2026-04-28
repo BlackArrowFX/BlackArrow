@@ -12,6 +12,13 @@ if "trade_notes" not in st.session_state:
 if "trade_history" not in st.session_state:
     st.session_state.trade_history = []
 
+# --- PERSISTENT SWING LEVELS ---
+# These lines ensure your Highs/Lows stay saved even after clicking "Save"
+levels = ["s4h", "s4l", "s1h", "s1l", "s30h", "s30l", "s15h", "s15l"]
+for level in levels:
+    if level not in st.session_state:
+        st.session_state[level] = 0.0
+
 # ---------------- SETUP ---------------- #
 st.set_page_config(page_title="BlackArrowFX Precision Engine", layout="wide")
 
@@ -43,9 +50,7 @@ with st.sidebar:
 
     st.markdown("---")
     st.header("🌍 News Filter")
-    
     st.link_button("📊 Check Forex Factory", "https://www.forexfactory.com/", use_container_width=True)
-    
     news_ok = st.toggle("No High Impact News Active", value=False) 
     
     if not news_ok:
@@ -86,33 +91,34 @@ with c4h:
     st.subheader("⏳ 4H BIAS")
     htf_bias = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", disabled=not news_ok)
     h_lock = not news_ok or htf_bias == "Select..."
-    s4_h = st.number_input("Swing High", value=0.0, format="%.2f", key="s4h", disabled=h_lock)
-    s4_l = st.number_input("Swing Low", value=0.0, format="%.2f", key="s4l", disabled=h_lock)
-    bias_4h_ok = st.checkbox("4H Confirmed", key="4h_c", disabled=h_lock or not (s4_h > 0 and s4_l > 0))
+    # Linked to session state to keep value
+    st.session_state.s4h = st.number_input("Swing High", value=st.session_state.s4h, format="%.2f", disabled=h_lock)
+    st.session_state.s4l = st.number_input("Swing Low", value=st.session_state.s4l, format="%.2f", disabled=h_lock)
+    bias_4h_ok = st.checkbox("4H Confirmed", key="4h_c", disabled=h_lock or not (st.session_state.s4h > 0 and st.session_state.s4l > 0))
 
 with c1h:
     st.subheader("⏱️ 1H STRUC")
     itf_trend = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="1h_t", disabled=not bias_4h_ok)
     i_lock = not bias_4h_ok or itf_trend == "Select..."
-    s1_h = st.number_input("1H High", value=0.0, format="%.2f", key="s1h", disabled=i_lock)
-    s1_l = st.number_input("1H Low", value=0.0, format="%.2f", key="s1l", disabled=i_lock)
-    bias_1h_ok = st.checkbox("1H Confirmed", key="1h_c", disabled=i_lock or not (s1_h > 0 and s1_l > 0))
+    st.session_state.s1h = st.number_input("1H High", value=st.session_state.s1h, format="%.2f", disabled=i_lock)
+    st.session_state.s1l = st.number_input("1H Low", value=st.session_state.s1l, format="%.2f", disabled=i_lock)
+    bias_1h_ok = st.checkbox("1H Confirmed", key="1h_c", disabled=i_lock or not (st.session_state.s1h > 0 and st.session_state.s1l > 0))
 
 with c30m:
     st.subheader("⚡ 30M SHIFT")
     t30_trend = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="30m_t", disabled=not bias_1h_ok)
     m30_lock = not bias_1h_ok or t30_trend == "Select..."
-    s30_h = st.number_input("30M High", value=0.0, format="%.2f", key="s30h", disabled=m30_lock)
-    s30_l = st.number_input("30M Low", value=0.0, format="%.2f", key="s30l", disabled=m30_lock)
-    bias_30m_ok = st.checkbox("30M Confirmed", key="30m_c", disabled=m30_lock or not (s30_h > 0 and s30_l > 0))
+    st.session_state.s30h = st.number_input("30M High", value=st.session_state.s30h, format="%.2f", disabled=m30_lock)
+    st.session_state.s30l = st.number_input("30M Low", value=st.session_state.s30l, format="%.2f", disabled=m30_lock)
+    bias_30m_ok = st.checkbox("30M Confirmed", key="30m_c", disabled=m30_lock or not (st.session_state.s30h > 0 and st.session_state.s30l > 0))
 
 with c15m:
     st.subheader("🎯 15M ENTRY")
     t15_trend = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="15m_t", disabled=not bias_30m_ok)
     m15_lock = not bias_30m_ok or t15_trend == "Select..."
-    s15_h = st.number_input("15M High", value=0.0, format="%.2f", key="s15h", disabled=m15_lock)
-    s15_l = st.number_input("15M Low", value=0.0, format="%.2f", key="s15l", disabled=m15_lock)
-    bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15_h > 0 and s15_l > 0))
+    st.session_state.s15h = st.number_input("15M High", value=st.session_state.s15h, format="%.2f", disabled=m15_lock)
+    st.session_state.s15l = st.number_input("15M Low", value=st.session_state.s15l, format="%.2f", disabled=m15_lock)
+    bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (st.session_state.s15h > 0 and st.session_state.s15l > 0))
 
 # ---------------- STRATEGY NOTES ---------------- #
 st.markdown("---")
@@ -134,10 +140,8 @@ with c5_1:
     m5_lock = not bias_15m_ok or m5_trend == "Select..."
 
 with c5_2:
-    label_bos = "BOS Price"
-    label_mss = "MSS Price"
-    m5_bos_p = st.number_input(label_bos, value=0.0, format="%.2f", disabled=m5_lock)
-    m5_mss_p = st.number_input(label_mss, value=0.0, format="%.2f", disabled=m5_lock)
+    m5_bos_p = st.number_input("BOS Price", value=0.0, format="%.2f", disabled=m5_lock)
+    m5_mss_p = st.number_input("MSS Price", value=0.0, format="%.2f", disabled=m5_lock)
 
 with c5_3:
     st.write("**Confirmation Type**")
@@ -182,44 +186,27 @@ with col_exec:
         actual_pips_dist = abs(entry_val - sl_val) / pip_factor
         if actual_pips_dist > 0:
             lot_size = (current_risk_usd / actual_pips_dist) / 10
-            
-            # --- CALCULATE TP & BE ---
             tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
             tp2 = entry_val + (actual_pips_dist * 3 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 3 * pip_factor)
             be_price = entry_val 
-
-            # --- CALCULATE POTENTIAL PROFIT ---
             profit_tp1 = current_risk_usd * 2
             profit_tp2 = current_risk_usd * 3
             
-            # --- DISPLAY ---
             m1, m2, m3 = st.columns(3)
             m1.metric("Lot Size", f"{round(lot_size, 2)}")
             m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}", delta=f"+${round(profit_tp1, 2)}")
             m3.metric("TP 2 (1:3)", f"{round(tp2, 2)}", delta=f"+${round(profit_tp2, 2)}")
-            
-            # --- SECURITY PROTOCOL NOTE ---
             st.info(f"🛡️ **SECURITY PROTOCOL:** At **{round(tp1, 2)}**, take 50% partials (+${round(profit_tp1/2, 2)}) and move SL to BE (**{round(be_price, 2)}**).")
-            
-            st.write(f"📏 Dist: {round(actual_pips_dist, 1)} pips | 💵 Risk: ${round(current_risk_usd, 2)}")
 
-            # --- SAVE BUTTON ---
             if st.button("💾 SAVE TRADE DETAILS", use_container_width=True):
-                clean_plan = st.session_state.trade_notes.replace("\n", " | ")
-                
                 trade_data = {
-                    "Time": dt_string,
-                    "Asset": symbol,
-                    "Dir": trade_dir,
-                    "4H (H/L)": f"{s4_h}/{s4_l}",
-                    "1H (H/L)": f"{s1_h}/{s1_l}",
-                    "30M (H/L)": f"{s30_h}/{s30_l}",
-                    "15M (H/L)": f"{s15_h}/{s15_l}",
-                    "POI": f"{poi_type} @ {zone_price}",
-                    "Lots": round(lot_size, 2),
-                    "Entry": entry_val,
-                    "TP1/BE": f"{round(tp1, 2)} / {round(be_price, 2)}",
-                    "Plan": clean_plan
+                    "Time": dt_string, "Asset": symbol, "Dir": trade_dir,
+                    "4H": f"{st.session_state.s4h}/{st.session_state.s4l}",
+                    "1H": f"{st.session_state.s1h}/{st.session_state.s1l}",
+                    "30M": f"{st.session_state.s30h}/{st.session_state.s30l}",
+                    "15M": f"{st.session_state.s15h}/{st.session_state.s15l}",
+                    "POI": f"{poi_type} @ {zone_price}", "Lots": round(lot_size, 2),
+                    "Entry": entry_val, "TP1/BE": f"{round(tp1, 2)} / {round(be_price, 2)}"
                 }
                 st.session_state.trade_history.append(trade_data)
                 st.toast("Trade Secured and Logged!")
@@ -230,25 +217,6 @@ st.header("📂 Session Trade Log")
 if st.session_state.trade_history:
     df_log = pd.DataFrame(st.session_state.trade_history)
     st.dataframe(df_log, use_container_width=True)
-    
-    c_del1, c_del2, c_dl = st.columns([1, 1, 2])
-    with c_del1:
-        if st.button("🗑️ DELETE LAST", use_container_width=True):
-            if st.session_state.trade_history:
-                st.session_state.trade_history.pop()
-                st.rerun()
-    with c_del2:
-        if st.button("🧨 CLEAR ALL", use_container_width=True):
-            st.session_state.trade_history = []
-            st.rerun()
-    with c_dl:
-        csv = df_log.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
-        st.download_button(
-            label="📥 DOWNLOAD CSV",
-            data=csv,
-            file_name=f"Trade_Log_{now.strftime('%Y%m%d')}.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
-else:
-    st.info("No trades saved yet.")
+    if st.button("🧨 CLEAR ALL", use_container_width=True):
+        st.session_state.trade_history = []
+        st.rerun()
