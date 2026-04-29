@@ -228,7 +228,7 @@ st.markdown("---")
 st.subheader("📝 EXECUTION PLANS & NOTES")
 
 with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
-    note_input = st.text_area("Strategic Setup:", value=st.session_state.trade_notes, height=250, key="note_area")
+    note_input = st.text_area("Strategic Setup:", value=st.session_state.trade_notes, height=450, key="note_area")
     if st.button("💾 SAVE STRATEGIC NOTES", use_container_width=True):
         st.session_state.trade_notes = note_input
         sync_user_to_file()
