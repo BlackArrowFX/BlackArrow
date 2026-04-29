@@ -147,12 +147,12 @@ with c15m:
 
 # ---------------- STRATEGY NOTES ---------------- #
 st.markdown("---")
-st.subheader("📝 POST-SHOCK EXECUTION PLAN")
+st.subheader("📝 EXECUTION PLANS & NOTES")
 with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
     st.session_state.trade_notes = st.text_area(
         "Paste Strategic Setup Here:",
         value=st.session_state.trade_notes,
-        height=400,
+        height=450,
         placeholder="WHAT TO DO: Watch for Liquidity Sweep...\nWHAT NOT TO DO: No Panic Entry..."
     )
 
