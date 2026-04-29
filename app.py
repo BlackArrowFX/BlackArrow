@@ -310,21 +310,43 @@ with col_exec:
                 sync_user_to_file()
                 st.toast("Trade Logged!")
 
-# ---------------- 📊 SESSION LOG ---------------- #
+# ---------------- 📊 SESSION LOG (RESTRUCTURED) ---------------- #
 st.markdown("---")
 st.header("📂 Session Trade Log")
 
 if st.session_state.trade_history:
-    df_log = pd.DataFrame([{k: v for k, v in t.items() if k != "Plan"} for t in st.session_state.trade_history])
+    # 1. Create the Table first
+    display_data = [{k: v for k, v in t.items() if k != "Plan"} for t in st.session_state.trade_history]
+    df_log = pd.DataFrame(display_data)
     st.table(df_log)
+
+    # 2. Show the Notes/Plans in a clean layout
+    st.subheader("📜 Execution Plans & Notes")
+    for i, trade in enumerate(st.session_state.trade_history):
+        # Use a unique key for each expander to prevent state loss
+        with st.expander(f"Plan for Trade #{i+1} ({trade['Asset']} @ {trade['Time']})"):
+            st.write(trade.get('Plan', "No notes recorded for this trade."))
+
+    # 3. FIX THE BUTTONS: Place them in a container to keep them grouped
+    st.markdown("### 🛠️ Log Management")
+    c_del1, c_del2, c_dl = st.columns([1, 1, 1]) # Equal widths often look better
     
-    if st.button("🗑️ DELETE LAST"):
-        st.session_state.trade_history.pop()
-        sync_user_to_file()
-        st.rerun()
+    with c_del1:
+        if st.button("🗑️ DELETE LAST", use_container_width=True):
+            if st.session_state.trade_history:
+                st.session_state.trade_history.pop()
+                sync_user_to_file()
+                st.rerun()
     
-    full_df = pd.DataFrame(st.session_state.trade_history)
-    csv = full_df.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 DOWNLOAD CSV", data=csv, file_name="Trade_Log.csv", mime="text/csv")
+    with c_del2:
+        if st.button("🧨 CLEAR ALL", use_container_width=True):
+            st.session_state.trade_history = []
+            sync_user_to_file()
+            st.rerun()
+            
+    with c_dl:
+        full_df = pd.DataFrame(st.session_state.trade_history)
+        csv = full_df.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 DOWNLOAD CSV", data=csv, file_name="Trade_Log.csv", mime="text/csv", use_container_width=True)
 else:
     st.info("No trades saved yet.")
