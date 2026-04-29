@@ -98,7 +98,7 @@ with st.expander("📜 MY TRADING PLAN", expanded=False):
     * Maintain discipline; never exceed daily limits.
 
     ### 5. Footprint Monitoring
-    * **Monitor:** Shark Absorption 🦈 on 4H/1H & 15M/30M (+ or -) Delta Check.
+    * **Monitor:** **SHARK ABSORPTION 🦈 on 4H/1H & 15M/30M (+ or -) Delta Check.**
     * **Zones:** 15M & 30M Footprint Charts at key reversal zones.
     * **Buy Imbalances:** 🔵 **Blue Highlights** 
     * **Sell Imbalances:** 🟡 **Yellow Highlights** 
