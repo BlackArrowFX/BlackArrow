@@ -83,13 +83,29 @@ with st.expander("📜 MY TRADING PLAN", expanded=False):
     * **1H:** Analyze overall market structure.
     * **15M:** Confirm short-term direction and intraday zones.
     * **5M:** Precise entry execution.
+    * *Identify: Trend direction, BoS, Liquidity zones, and Reversal areas.*
 
     ### 2. BlackArrowFX Strategic Setup
     * Confirm and mark all **Swing Highs and Swing Lows** on every timeframe.
+    * Ensure setup aligns with HTF bias before execution (POI & Key Levels).
 
-    ### 3. Footprint Monitoring
+    ### 3. BlackArrowClick Execution
+    * Select **Fixed Lot** or **Risk Amount** before placing trade.
+    * Pre-plan entry price and double-check **SL/TP** levels.
+
+    ### 4. Risk Management
+    * **Max Risk:** 3% to 5% or **$100 maximum**.
+    * Maintain discipline; never exceed daily limits.
+
+    ### 5. Footprint Monitoring
     * **Monitor:** **SHARK ABSORPTION 🦈 on 4H/1H & 15M/30M (+ or -) Delta Check.**
+    * **Zones:** 15M & 30M Footprint Charts at key reversal zones.
+    * **Buy Imbalances:** 🔵 **Blue Highlights** 
+    * **Sell Imbalances:** 🟡 **Yellow Highlights** 
     * **Confirmation:** Focus on **300% Imbalance Stack** for strong order flow.
+    * **Execution:** Use delta shifts, absorption, and imbalance clusters.
+    
+    **Final Rule:** Only execute when Structure + POI + Footprint + Risk are aligned.
     """)
 
 st.markdown("---")
@@ -129,21 +145,18 @@ with c15m:
     s15_l = st.number_input("15M Low", value=0.0, format="%.2f", key="s15l", disabled=m15_lock)
     bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15_h > 0 and s15_l > 0))
 
-# ---------------- UPDATED: POST-SHOCK EXECUTION PLAN (LARGE) ---------------- #
+# ---------------- STRATEGY NOTES ---------------- #
 st.markdown("---")
-st.header("📝 PHASE 1.5: POST-SHOCK STRATEGY NOTES")
-st.info("💡 **PRE-ENTRY CHECK:** Write your detailed logic here. This box is now expanded for better readability.")
-
-st.session_state.trade_notes = st.text_area(
-    "Type Strategy narrative (Liquidity sweeps, Footprint clusters, Invalidation points):",
-    value=st.session_state.trade_notes,
-    height=450,  # Highly visible height
-    placeholder="EX: Swept 1H High, looking for 300% yellow imbalance on 5M. If price closes above X, trade is void...",
-    key="big_notes"
-)
+st.subheader("📝 POST-SHOCK EXECUTION PLAN")
+with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
+    st.session_state.trade_notes = st.text_area(
+        "Paste Strategic Setup Here:",
+        value=st.session_state.trade_notes,
+        height=400,
+        placeholder="WHAT TO DO: Watch for Liquidity Sweep...\nWHAT NOT TO DO: No Panic Entry..."
+    )
 
 # ---------------- 5M MICRO-CONFIRMATION ---------------- #
-st.markdown("---")
 st.subheader("⚡ 5M MICRO-CONFIRMATION")
 c5_1, c5_2, c5_3 = st.columns(3)
 
@@ -239,7 +252,7 @@ if st.session_state.trade_history:
     df_log = pd.DataFrame(display_data)
     st.table(df_log)
 
-    st.subheader("📜 Saved Execution Plans")
+    st.subheader("📜 Execution Plans & Notes")
     for i, trade in enumerate(st.session_state.trade_history):
         with st.expander(f"Plan for Trade #{i+1} ({trade['Asset']} @ {trade['Time']})"):
             st.write(trade['Plan'])
