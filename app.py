@@ -76,7 +76,7 @@ with st.sidebar:
 st.title(f"🏹 BlackArrowFX: {symbol} Precision Engine")
 st.caption(f"Asset: {symbol} | Mode: {asset_type} | Server Time: {dt_string}")
 
-# ---------------- ORIGINAL TRADING PLAN ---------------- #
+# ---------------- AMENDED TRADING PLAN SECTION ---------------- #
 with st.expander("📜 MY TRADING PLAN", expanded=False):
     st.markdown("""
     ### 1. Market Structure Analysis
@@ -100,7 +100,9 @@ with st.expander("📜 MY TRADING PLAN", expanded=False):
     ### 5. Footprint Monitoring
     * **Monitor:** **SHARK ABSORPTION 🦈 on 4H/1H & 15M/30M (+ or -) Delta Check.**
     * **Zones:** 15M & 30M Footprint Charts at key reversal zones.
-    * **Buy Imbalances:** 🔵 **Blue Highlights** * **Sell Imbalances:** 🟡 **Yellow Highlights** * **Confirmation:** Focus on **300% Imbalance Stack** for strong order flow.
+    * **Buy Imbalances:** 🔵 **Blue Highlights** 
+    * **Sell Imbalances:** 🟡 **Yellow Highlights** 
+    * **Confirmation:** Focus on **300% Imbalance Stack** for strong order flow.
     * **Execution:** Use delta shifts, absorption, and imbalance clusters.
     
     **Final Rule:** Only execute when Structure + POI + Footprint + Risk are aligned.
@@ -214,7 +216,7 @@ with col_exec:
             profit_tp1 = current_risk_usd * 2
 
             m1, m2 = st.columns(2)
-            m1.metric("Lot Size", f"{round(lot_size, 4)}")
+            m1.metric("Lot Size", f"{round(lot_size, 2)}")
             m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}", delta=f"+${round(profit_tp1, 2)}")
             
             st.info(f"🛡️ **PROTOCOL:** At **{round(tp1, 2)}**, move SL to BE (**{round(be_price, 2)}**).")
@@ -229,7 +231,7 @@ with col_exec:
                     "30M": f"{s30_h}/{s30_l}",
                     "15M": f"{s15_h}/{s15_l}",
                     "POI": f"{poi_type} @ {zone_price}",
-                    "Lots": round(lot_size, 4),
+                    "Lots": round(lot_size, 2),
                     "Entry": entry_val,
                     "TP1/BE": f"{round(tp1, 2)} / {round(be_price, 2)}",
                     "Plan": st.session_state.trade_notes
@@ -237,40 +239,36 @@ with col_exec:
                 st.session_state.trade_history.append(trade_data)
                 st.toast("Trade Logged!")
 
-# ---------------- 📊 SESSION LOG & MANAGER ---------------- #
+# ---------------- 📊 SESSION LOG ---------------- #
 st.markdown("---")
-st.header("📂 Session Trade Log & Manager")
+st.header("📂 Session Trade Log")
 
 if st.session_state.trade_history:
-    # Display table without the Plan column for readability
-    display_df = pd.DataFrame(st.session_state.trade_history).drop(columns=["Plan"])
-    st.table(display_df)
-
-    st.subheader("📜 Execution Plans & Notes Manager")
-    indices_to_remove = []
+    display_data = []
+    for t in st.session_state.trade_history:
+        table_row = {k: v for k, v in t.items() if k != "Plan"}
+        display_data.append(table_row)
     
-    # Iterate through trades to allow editing/deletion
+    df_log = pd.DataFrame(display_data)
+    st.table(df_log)
+
+    st.subheader("📜 Execution Plans & Notes")
     for i, trade in enumerate(st.session_state.trade_history):
-        with st.expander(f"Manage Trade #{i+1}: {trade['Asset']} @ {trade['Time']}", expanded=False):
-            # Edit the note
-            updated_note = st.text_area(f"Update Notes for Trade {i+1}", value=trade['Plan'], key=f"edit_{i}")
-            
-            col_b1, col_b2, _ = st.columns([1, 1, 3])
-            if col_b1.button("💾 SAVE UPDATES", key=f"save_{i}"):
-                st.session_state.trade_history[i]['Plan'] = updated_note
-                st.success("Note updated!")
-            
-            if col_b2.button("🗑️ DELETE TRADE", key=f"del_{i}"):
-                indices_to_remove.append(i)
-                st.rerun()
+        with st.expander(f"Plan for Trade #{i+1} ({trade['Asset']} @ {trade['Time']})"):
+            st.write(trade['Plan'])
 
-    # Process deletions
-    for idx in sorted(indices_to_remove, reverse=True):
-        st.session_state.trade_history.pop(idx)
-
-    st.markdown("---")
-    # Action buttons for history
-    c_dl, c_clr = st.columns([2, 1])
+    c_del1, c_del2, c_dl = st.columns([1, 1, 2])
+    with c_del1:
+        if st.button("🗑️ DELETE LAST", use_container_width=True):
+            st.session_state.trade_history.pop()
+            st.rerun()
+    with c_del2:
+        if st.button("🧨 CLEAR ALL", use_container_width=True):
+            st.session_state.trade_history = []
+            st.rerun()
     with c_dl:
         full_df = pd.DataFrame(st.session_state.trade_history)
-        csv = full
+        csv = full_df.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 DOWNLOAD CSV", data=csv, file_name="Trade_Log.csv", mime="text/csv", use_container_width=True)
+else:
+    st.info("No trades saved yet.")
