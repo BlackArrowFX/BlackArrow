@@ -144,24 +144,6 @@ with c15m:
     s15_l = st.number_input("15M Low", value=0.0, format="%.2f", key="s15l", disabled=m15_lock)
     bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15_h > 0 and s15_l > 0))
 
-# ---------------- NEW INTERACTIVE FOOTPRINT SECTION ---------------- #
-st.markdown("---")
-st.subheader("👣 FOOTPRINT & DELTA MONITORING")
-fp1, fp2, fp3 = st.columns(3)
-
-with fp1:
-    delta_val = st.number_input("15M/30M Delta Value", value=0, step=100)
-    delta_check = abs(delta_val) >= 1000
-    if delta_check: st.success("✅ Delta Target Met")
-
-with fp2:
-    imb_type = st.multiselect("Imbalances Detected", ["Buy (Blue #2962FF)", "Sell (Yellow #FFEB3B)"])
-    three_hundred_pct = st.toggle("300% Imbalance Confirmed", value=False)
-
-with fp3:
-    absorption = st.toggle("Absorption/Trapped Traders", value=False)
-    footprint_ok = st.checkbox("Footprint Confirmed", value=(delta_check and three_hundred_pct))
-
 # ---------------- STRATEGY NOTES ---------------- #
 st.markdown("---")
 st.subheader("📝 POST-SHOCK EXECUTION PLAN")
@@ -190,12 +172,11 @@ with c5_3:
     m5_bos_ok = st.checkbox("BOS Confirmed", disabled=m5_bos_p == 0)
     m5_mss_ok = st.checkbox("MSS Confirmed", disabled=m5_mss_p == 0)
 
-# ---------------- CONFLUENCE METER (UPDATED) ---------------- #
+# ---------------- CONFLUENCE METER ---------------- #
 st.markdown("---")
-# Added footprint_ok to the confluence requirements
-confluences = [bias_4h_ok, bias_1h_ok, bias_30m_ok, bias_15m_ok, footprint_ok, (m5_bos_ok or m5_mss_ok)]
+confluences = [bias_4h_ok, bias_1h_ok, bias_30m_ok, bias_15m_ok, (m5_bos_ok or m5_mss_ok)]
 score = sum(confluences)
-progress = score / 6
+progress = score / 5
 
 col_met, col_stat = st.columns([3, 1])
 with col_met:
@@ -205,7 +186,7 @@ with col_stat:
 
 # ---------------- PHASE 2 & 3 ---------------- #
 st.markdown("---")
-system_unlocked = bias_15m_ok and news_ok and footprint_ok
+system_unlocked = bias_15m_ok and news_ok
 col_poi, col_exec = st.columns([1, 2])
 
 with col_poi:
@@ -230,4 +211,63 @@ with col_exec:
         if actual_pips_dist > 0:
             lot_size = (current_risk_usd / actual_pips_dist) / 10
             tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
-            be_price = entry
+            be_price = entry_val 
+            profit_tp1 = current_risk_usd * 2
+
+            m1, m2 = st.columns(2)
+            m1.metric("Lot Size", f"{round(lot_size, 2)}")
+            m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}", delta=f"+${round(profit_tp1, 2)}")
+            
+            st.info(f"🛡️ **PROTOCOL:** At **{round(tp1, 2)}**, move SL to BE (**{round(be_price, 2)}**).")
+            
+            if st.button("💾 SAVE TRADE DETAILS", use_container_width=True):
+                trade_data = {
+                    "Time": dt_string,
+                    "Asset": symbol,
+                    "Dir": trade_dir,
+                    "4H": f"{s4_h}/{s4_l}",
+                    "1H": f"{s1_h}/{s1_l}",
+                    "30M": f"{s30_h}/{s30_l}",
+                    "15M": f"{s15_h}/{s15_l}",
+                    "POI": f"{poi_type} @ {zone_price}",
+                    "Lots": round(lot_size, 2),
+                    "Entry": entry_val,
+                    "TP1/BE": f"{round(tp1, 2)} / {round(be_price, 2)}",
+                    "Plan": st.session_state.trade_notes
+                }
+                st.session_state.trade_history.append(trade_data)
+                st.toast("Trade Logged!")
+
+# ---------------- 📊 SESSION LOG ---------------- #
+st.markdown("---")
+st.header("📂 Session Trade Log")
+
+if st.session_state.trade_history:
+    display_data = []
+    for t in st.session_state.trade_history:
+        table_row = {k: v for k, v in t.items() if k != "Plan"}
+        display_data.append(table_row)
+    
+    df_log = pd.DataFrame(display_data)
+    st.table(df_log)
+
+    st.subheader("📜 Execution Plans & Notes")
+    for i, trade in enumerate(st.session_state.trade_history):
+        with st.expander(f"Plan for Trade #{i+1} ({trade['Asset']} @ {trade['Time']})"):
+            st.write(trade['Plan'])
+
+    c_del1, c_del2, c_dl = st.columns([1, 1, 2])
+    with c_del1:
+        if st.button("🗑️ DELETE LAST", use_container_width=True):
+            st.session_state.trade_history.pop()
+            st.rerun()
+    with c_del2:
+        if st.button("🧨 CLEAR ALL", use_container_width=True):
+            st.session_state.trade_history = []
+            st.rerun()
+    with c_dl:
+        full_df = pd.DataFrame(st.session_state.trade_history)
+        csv = full_df.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 DOWNLOAD CSV", data=csv, file_name="Trade_Log.csv", mime="text/csv", use_container_width=True)
+else:
+    st.info("No trades saved yet.")
