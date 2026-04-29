@@ -76,7 +76,7 @@ with st.sidebar:
 st.title(f"🏹 BlackArrowFX: {symbol} Precision Engine")
 st.caption(f"Asset: {symbol} | Mode: {asset_type} | Server Time: {dt_string}")
 
-# ---------------- TRADING PLAN ---------------- #
+# ---------------- AMENDED TRADING PLAN SECTION ---------------- #
 with st.expander("📜 MY TRADING PLAN", expanded=False):
     st.markdown("""
     ### 1. Market Structure Analysis
@@ -84,12 +84,9 @@ with st.expander("📜 MY TRADING PLAN", expanded=False):
     * **15M:** Confirm short-term direction and intraday zones.
     * **5M:** Precise entry execution.
     
-    ### 2. Strategic Setup
+    ### 2. BlackArrowFX Strategic Setup
     * Confirm Swing Highs/Lows on all timeframes.
     * Align with HTF bias (POI & Key Levels).
-    
-    ### 3. Footprint Confirmation
-    * Monitor Shark Absorption 🦈 & Imbalance Stacks (300%+).
     """)
 
 st.markdown("---")
@@ -124,14 +121,14 @@ with c15m:
     s15_l = st.number_input("15M Low", value=0.0, format="%.2f", key="s15l")
     bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=not (s15_h > 0))
 
-# ---------------- HYBRID EXECUTION PLAN ---------------- #
+# ---------------- LIVE STRATEGY NOTES ---------------- #
 st.markdown("---")
-st.subheader("📝 LIVE EXECUTION PLAN (Hybrid)")
+st.subheader("📝 PRE-ENTRY EXECUTION PLAN")
 st.session_state.trade_notes = st.text_area(
-    "Active Strategy Workspace:",
+    "Paste Setup Details Here:",
     value=st.session_state.trade_notes,
     height=150,
-    placeholder="Describe current entry triggers..."
+    placeholder="Triggers, Imbalances, Shark Absorption..."
 )
 
 # ---------------- PHASE 2 & 3 ---------------- #
@@ -141,9 +138,9 @@ col_poi, col_exec = st.columns([1, 2])
 
 with col_poi:
     st.header("📋 PHASE 2: POI")
-    poi_type = st.selectbox("Zone", ["Select...", "Swing High", "Swing Low", "Supply", "Demand", "OB", "FVG"], disabled=not system_unlocked)
-    zone_price = st.number_input("Entry Price", value=0.0, format="%.2f", disabled=not system_unlocked)
-    trade_dir = st.radio("Position", ["Select...", "LONG 🔵", "SHORT 🔴"], horizontal=True, disabled=not system_unlocked)
+    poi_type = st.selectbox("Trading Zone", ["Select...", "Swing High", "Swing Low", "Supply", "Demand", "OB", "FVG"], disabled=not system_unlocked)
+    zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f", disabled=not system_unlocked)
+    trade_dir = st.radio("Position Direction", ["Select...", "LONG 🔵", "SHORT 🔴"], horizontal=True, disabled=not system_unlocked)
 
 with col_exec:
     st.header("🚀 PHASE 3: EXECUTE")
@@ -154,7 +151,7 @@ with col_exec:
         calc_sl = zone_price - (sl_distance_pips * pip_factor) if trade_dir == "LONG 🔵" else zone_price + (sl_distance_pips * pip_factor)
 
     sl_val = st.number_input(f"Stop Loss", value=calc_sl, format="%.2f", disabled=not system_unlocked)
-    entry_val = st.number_input("Execution Price", value=0.0, format="%.2f", disabled=not system_unlocked)
+    entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f", disabled=not system_unlocked)
     
     if entry_val > 0 and sl_val > 0 and trade_dir != "Select...":
         actual_pips_dist = abs(entry_val - sl_val) / pip_factor
@@ -171,62 +168,41 @@ with col_exec:
                     "Time": dt_string,
                     "Asset": symbol,
                     "Dir": trade_dir,
-                    "4H": f"{s4_h}/{s4_l}",
-                    "1H": f"{s1_h}/{s1_l}",
-                    "30M": f"{s30_h}/{s30_l}",
-                    "15M": f"{s15_h}/{s15_l}",
                     "POI": f"{poi_type} @ {zone_price}",
                     "Lots": round(lot_size, 4),
                     "Entry": entry_val,
                     "TP1/BE": f"{round(tp1, 2)} / {round(entry_val, 2)}",
-                    "Plan": st.session_state.trade_notes # Captured at moment of save
+                    "Plan": st.session_state.trade_notes
                 }
                 st.session_state.trade_history.append(trade_data)
-                st.toast("Trade Logged with Plan!")
+                st.toast("Trade Logged!")
 
-# ---------------- 📊 HYBRID MANAGER (VIEW & EDIT) ---------------- #
+# ---------------- 📊 LIVE HYBRID DATA EDITOR ---------------- #
 st.markdown("---")
-st.header("📂 Hybrid Manager: View & Edit History")
+st.header("📂 Session Trade Log (Live Hybrid Editor)")
+st.info("💡 You can edit any cell below directly. Changes save automatically.")
 
 if st.session_state.trade_history:
-    # Use data_editor for "View & Edit at same time" experience
-    history_df = pd.DataFrame(st.session_state.trade_history)
-    
-    # Show the table first
-    st.subheader("1. Quick View")
-    st.table(history_df.drop(columns=["Plan"]))
+    # Convert history to DataFrame
+    df_history = pd.DataFrame(st.session_state.trade_history)
 
-    # Show the Editor boxes
-    st.subheader("2. Active Plan Editor")
-    indices_to_remove = []
-    
-    for i, trade in enumerate(st.session_state.trade_history):
-        # We use a unique key to keep the edit and view separate but simultaneous
-        with st.expander(f"📝 VIEW/EDIT Trade #{i+1} | {trade['Asset']} | {trade['Time']}", expanded=False):
-            # Show stats and allow plan editing in the same box
-            c_info, c_edit = st.columns([1, 2])
-            
-            with c_info:
-                st.write(f"**Dir:** {trade['Dir']}")
-                st.write(f"**Entry:** {trade['Entry']}")
-                st.write(f"**TP1/BE:** {trade['TP1/BE']}")
-                if st.button("🗑️ Delete", key=f"del_{i}"):
-                    indices_to_remove.append(i)
-                    st.rerun()
-            
-            with c_edit:
-                # Live edit the plan directly in the history
-                new_p = st.text_area("Edit Strategy Details:", value=trade['Plan'], key=f"hyb_edit_{i}")
-                if st.button("💾 Update This Trade", key=f"hyb_save_{i}"):
-                    st.session_state.trade_history[i]['Plan'] = new_p
-                    st.success("History Updated!")
+    # USE DATA_EDITOR: This allows editing and viewing at the same time
+    edited_df = st.data_editor(
+        df_history,
+        column_config={
+            "Plan": st.column_config.TextColumn("Execution Plan & Notes", width="large", required=True),
+            "Time": st.column_config.TextColumn(disabled=True), # Lock the timestamp
+        },
+        num_rows="dynamic", # Allows you to add/delete rows directly in the table
+        use_container_width=True,
+        key="history_editor"
+    )
 
-    # Handle deletes
-    for idx in sorted(indices_to_remove, reverse=True):
-        st.session_state.trade_history.pop(idx)
+    # Sync changes back to session state
+    if st.button("🔄 Commit Changes to History", use_container_width=True):
+        st.session_state.trade_history = edited_df.to_dict('records')
+        st.rerun()
 
-    st.markdown("---")
-    csv = history_df.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 DOWNLOAD COMPLETE CSV", data=csv, file_name="BlackArrow_HybridLog.csv", use_container_width=True)
-else:
-    st.info("No trades saved yet.")
+    # DOWNLOAD LOG
+    csv = edited_df.to_csv(index=False).encode('utf-8')
+    st.download_button("📥 DOWNLOAD EDITED CSV", data=csv
