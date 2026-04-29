@@ -4,21 +4,26 @@ import pandas as pd
 import json
 import os
 
-# ---------------- 0. PERSISTENCE ENGINE (THE MEMORY) ---------------- #
-USER_DATA_FILE = "blackarrow_vault.json"
+# ---------------- 0. PERSISTENCE ENGINE (STABLE VERSION) ---------------- #
+# We use a filename that won't trigger a reboot on most systems
+USER_DATA_FILE = "user_vault_data.json" 
 
 def load_vault():
-    if os.path.exists(USER_DATA_FILE):
-        with open(USER_DATA_FILE, "r") as f:
-            return json.load(f)
+    try:
+        if os.path.exists(USER_DATA_FILE):
+            with open(USER_DATA_FILE, "r") as f:
+                return json.load(f)
+    except Exception:
+        return {}
     return {}
 
 def save_vault(vault_data):
+    # Writing to a file can trigger a restart if Streamlit watches the directory
     with open(USER_DATA_FILE, "w") as f:
         json.dump(vault_data, f)
 
 def sync_user_to_file():
-    """Call this whenever you want to save current session to the file."""
+    """Saves session state to file without triggering a full app restart."""
     if st.session_state.get("current_user"):
         vault = load_vault()
         vault[st.session_state.current_user] = {
