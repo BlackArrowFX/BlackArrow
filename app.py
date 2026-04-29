@@ -173,13 +173,16 @@ with st.expander("📜 MY TRADING PLAN", expanded=False):
     ### 5. Footprint Monitoring
     * **Monitor:** **SHARK ABSORPTION 🦈 on 4H/1H & 15M/30M (+ or -) Delta Check.**
     * **Zones:** 15M & 30M Footprint Charts at key reversal zones.
-    * **Buy Imbalances:** 🔵 **Blue Highlights** * **Sell Imbalances:** 🟡 **Yellow Highlights** * **Confirmation:** Focus on **300% Imbalance Stack** for strong order flow.
+    * **Buy Imbalances:** 🔵 **Blue Highlights** 
+    * **Sell Imbalances:** 🟡 **Yellow Highlights** 
+    * **Confirmation:** Focus on **300% Imbalance Stack** for strong order flow.
     * **Execution:** Use delta shifts, absorption, and imbalance clusters.
     
     **Final Rule:** Only execute when Structure + POI + Footprint + Risk are aligned.
     """)
 
 st.markdown("---")
+
 
 # ---------------- QUAD TIMEFRAME ANALYSIS ---------------- #
 c4h, c1h, c30m, c15m = st.columns(4)
