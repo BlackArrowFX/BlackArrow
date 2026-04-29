@@ -152,18 +152,40 @@ with st.sidebar:
 st.title(f"🏹 BlackArrowFX: {symbol} Precision Engine")
 st.caption(f"Asset: {symbol} | Mode: {asset_type} | Server Time: {dt_string}")
 
+# ---------------- AMENDED TRADING PLAN SECTION ---------------- #
 with st.expander("📜 MY TRADING PLAN", expanded=False):
     st.markdown("""
     ### 1. Market Structure Analysis
     * **1H:** Analyze overall market structure.
     * **15M:** Confirm short-term direction and intraday zones.
     * **5M:** Precise entry execution.
+    * *Identify: Trend direction, BoS, Liquidity zones, and Reversal areas.*
+
+    ### 2. BlackArrowFX Strategic Setup
+    * Confirm and mark all **Swing Highs and Swing Lows** on every timeframe.
+    * Ensure setup aligns with HTF bias before execution (POI & Key Levels).
+
+    ### 3. BlackArrowClick Execution
+    * Select **Fixed Lot** or **Risk Amount** before placing trade.
+    * Pre-plan entry price and double-check **SL/TP** levels.
+
+    ### 4. Risk Management
+    * **Max Risk:** 3% to 5% or **$100 maximum**.
+    * Maintain discipline; never exceed daily limits.
 
     ### 5. Footprint Monitoring
-    * **Monitor:** **SHARK ABSORPTION 🦈 on 4H/1H & 15M/30M Delta Check.**
-    * **Buy Imbalances:** 🔵 **Blue Highlights** | **Sell Imbalances:** 🟡 **Yellow Highlights** """)
+    * **Monitor:** **SHARK ABSORPTION 🦈 on 4H/1H & 15M/30M (+ or -) Delta Check.**
+    * **Zones:** 15M & 30M Footprint Charts at key reversal zones.
+    * **Buy Imbalances:** 🔵 **Blue Highlights** 
+    * **Sell Imbalances:** 🟡 **Yellow Highlights** 
+    * **Confirmation:** Focus on **300% Imbalance Stack** for strong order flow.
+    * **Execution:** Use delta shifts, absorption, and imbalance clusters.
+    
+    **Final Rule:** Only execute when Structure + POI + Footprint + Risk are aligned.
+    """)
 
 st.markdown("---")
+
 
 # ---------------- QUAD TIMEFRAME ANALYSIS ---------------- #
 c4h, c1h, c30m, c15m = st.columns(4)
