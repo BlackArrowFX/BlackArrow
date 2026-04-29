@@ -100,9 +100,7 @@ with st.expander("📜 MY TRADING PLAN", expanded=False):
     ### 5. Footprint Monitoring
     * **Monitor:** **SHARK ABSORPTION 🦈 on 4H/1H & 15M/30M (+ or -) Delta Check.**
     * **Zones:** 15M & 30M Footprint Charts at key reversal zones.
-    * **Buy Imbalances:** 🔵 **Blue Highlights** 
-    * **Sell Imbalances:** 🟡 **Yellow Highlights** 
-    * **Confirmation:** Focus on **300% Imbalance Stack** for strong order flow.
+    * **Buy Imbalances:** 🔵 **Blue Highlights** * **Sell Imbalances:** 🟡 **Yellow Highlights** * **Confirmation:** Focus on **300% Imbalance Stack** for strong order flow.
     * **Execution:** Use delta shifts, absorption, and imbalance clusters.
     
     **Final Rule:** Only execute when Structure + POI + Footprint + Risk are aligned.
@@ -145,18 +143,8 @@ with c15m:
     s15_l = st.number_input("15M Low", value=0.0, format="%.2f", key="s15l", disabled=m15_lock)
     bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15_h > 0 and s15_l > 0))
 
-# ---------------- STRATEGY NOTES ---------------- #
-st.markdown("---")
-st.subheader("📝 POST-SHOCK EXECUTION PLAN")
-with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
-    st.session_state.trade_notes = st.text_area(
-        "Paste Strategic Setup Here:",
-        value=st.session_state.trade_notes,
-        height=200,
-        placeholder="WHAT TO DO: Watch for Liquidity Sweep...\nWHAT NOT TO DO: No Panic Entry..."
-    )
-
 # ---------------- 5M MICRO-CONFIRMATION ---------------- #
+st.markdown("---")
 st.subheader("⚡ 5M MICRO-CONFIRMATION")
 c5_1, c5_2, c5_3 = st.columns(3)
 
@@ -239,9 +227,19 @@ with col_exec:
                 st.session_state.trade_history.append(trade_data)
                 st.toast("Trade Logged!")
 
-# ---------------- 📊 SESSION LOG ---------------- #
+# ---------------- 📊 SESSION LOG & EXECUTION NOTES ---------------- #
 st.markdown("---")
 st.header("📂 Session Trade Log")
+
+# Consolidated View/Edit Section
+st.subheader("📜 Execution Plans & Notes")
+with st.expander("📌 VIEW / EDIT TRADE NOTES", expanded=True):
+    st.session_state.trade_notes = st.text_area(
+        "Paste Strategic Setup Here:",
+        value=st.session_state.trade_notes,
+        height=200,
+        placeholder="WHAT TO DO: Watch for Liquidity Sweep...\nWHAT NOT TO DO: No Panic Entry..."
+    )
 
 if st.session_state.trade_history:
     display_data = []
@@ -252,7 +250,7 @@ if st.session_state.trade_history:
     df_log = pd.DataFrame(display_data)
     st.table(df_log)
 
-    st.subheader("📜 Execution Plans & Notes")
+    st.write("**Individual Trade Execution History**")
     for i, trade in enumerate(st.session_state.trade_history):
         with st.expander(f"Plan for Trade #{i+1} ({trade['Asset']} @ {trade['Time']})"):
             st.write(trade['Plan'])
