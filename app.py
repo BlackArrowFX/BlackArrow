@@ -97,12 +97,11 @@ with st.expander("📜 MY TRADING PLAN", expanded=False):
     * **Max Risk:** 3% to 5% or **$100 maximum**.
     * Maintain discipline; never exceed daily limits.
 
-    ### 5. Footprint Monitoring
-    * **Monitor:** **SHARK ABSORPTION 🦈 on 4H/1H & 15M/30M (+ or -) Delta Check.**
-    * **Zones:** 15M & 30M Footprint Charts at key reversal zones.
-    * **Buy Imbalances:** 🔵 **Blue Highlights** 
-    * **Sell Imbalances:** 🟡 **Yellow Highlights** 
-    * **Confirmation:** Focus on **300% Imbalance Stack** for strong order flow.
+    ### 5. Footprint Monitoring (15M / 30M Delta Check)
+    * **Monitor:** 15M and 30M Footprint Charts at key reversal zones.
+    * **Buy Imbalances:** Look for Blue (#2962FF) highlights.
+    * **Sell Imbalances:** Look for Yellow (#FFEB3B) highlights.
+    * **Confirmation:** Focus on **300% Imbalance Levels** for strong order flow.
     * **Execution:** Use delta shifts, absorption, and imbalance clusters.
     
     **Final Rule:** Only execute when Structure + POI + Footprint + Risk are aligned.
