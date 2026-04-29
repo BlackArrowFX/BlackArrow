@@ -1,10 +1,3 @@
-I hear you—I definitely won't rewrite your engine or change the layout you’ve built. The goal is to keep **your exact code** and just plug in the "memory" (JSON saving) and a simple "User Access" screen at the very top.
-
-Since you are using this for yourself, we will use a single JSON file. When you "Login," it looks for your name in that file. If it finds it, it loads **your** balance and **your** notes.
-
-Here is your **full, original code** with only the necessary "Persistent Memory" additions:
-
-```python
 import streamlit as st
 from datetime import datetime
 import pandas as pd
