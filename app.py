@@ -11,8 +11,6 @@ if "trade_notes" not in st.session_state:
     st.session_state.trade_notes = ""
 if "trade_history" not in st.session_state:
     st.session_state.trade_history = []
-if "editing_index" not in st.session_state:
-    st.session_state.editing_index = None
 
 # ---------------- SETUP ---------------- #
 st.set_page_config(page_title="BlackArrowFX Precision Engine", layout="wide")
@@ -78,15 +76,36 @@ with st.sidebar:
 st.title(f"🏹 BlackArrowFX: {symbol} Precision Engine")
 st.caption(f"Asset: {symbol} | Mode: {asset_type} | Server Time: {dt_string}")
 
-# ---------------- TRADING PLAN SECTION ---------------- #
+# ---------------- AMENDED TRADING PLAN SECTION ---------------- #
 with st.expander("📜 MY TRADING PLAN", expanded=False):
     st.markdown("""
     ### 1. Market Structure Analysis
-    * **1H:** HTF Structure | **15M:** Intraday Zones | **5M:** Entry Execution.
-    ### 2. Strategic Setup
-    * Mark Swing Highs/Lows. Align with HTF POIs.
-    ### 3. Risk & Footprint
-    * **Max Risk:** $100. **Footprint:** 300% Imbalance Stacks & Delta Shifts.
+    * **1H:** Analyze overall market structure.
+    * **15M:** Confirm short-term direction and intraday zones.
+    * **5M:** Precise entry execution.
+    * *Identify: Trend direction, BoS, Liquidity zones, and Reversal areas.*
+
+    ### 2. BlackArrowFX Strategic Setup
+    * Confirm and mark all **Swing Highs and Swing Lows** on every timeframe.
+    * Ensure setup aligns with HTF bias before execution (POI & Key Levels).
+
+    ### 3. BlackArrowClick Execution
+    * Select **Fixed Lot** or **Risk Amount** before placing trade.
+    * Pre-plan entry price and double-check **SL/TP** levels.
+
+    ### 4. Risk Management
+    * **Max Risk:** 3% to 5% or **$100 maximum**.
+    * Maintain discipline; never exceed daily limits.
+
+    ### 5. Footprint Monitoring
+    * **Monitor:** **SHARK ABSORPTION 🦈 on 4H/1H & 15M/30M (+ or -) Delta Check.**
+    * **Zones:** 15M & 30M Footprint Charts at key reversal zones.
+    * **Buy Imbalances:** 🔵 **Blue Highlights** 
+    * **Sell Imbalances:** 🟡 **Yellow Highlights** 
+    * **Confirmation:** Focus on **300% Imbalance Stack** for strong order flow.
+    * **Execution:** Use delta shifts, absorption, and imbalance clusters.
+    
+    **Final Rule:** Only execute when Structure + POI + Footprint + Risk are aligned.
     """)
 
 st.markdown("---")
@@ -129,19 +148,42 @@ with c15m:
 # ---------------- STRATEGY NOTES ---------------- #
 st.markdown("---")
 st.subheader("📝 POST-SHOCK EXECUTION PLAN")
-st.session_state.trade_notes = st.text_area(
-    "Paste Strategic Setup Here:",
-    value=st.session_state.trade_notes,
-    height=150,
-    placeholder="Watch for Liquidity Sweep..."
-)
+with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
+    st.session_state.trade_notes = st.text_area(
+        "Paste Strategic Setup Here:",
+        value=st.session_state.trade_notes,
+        height=200,
+        placeholder="WHAT TO DO: Watch for Liquidity Sweep...\nWHAT NOT TO DO: No Panic Entry..."
+    )
+
+# ---------------- 5M MICRO-CONFIRMATION ---------------- #
+st.subheader("⚡ 5M MICRO-CONFIRMATION")
+c5_1, c5_2, c5_3 = st.columns(3)
+
+with c5_1:
+    m5_trend = st.radio("5M Current Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="m5_t", disabled=not bias_15m_ok)
+    m5_lock = not bias_15m_ok or m5_trend == "Select..."
+
+with c5_2:
+    m5_bos_p = st.number_input("BOS Price", value=0.0, format="%.2f", disabled=m5_lock)
+    m5_mss_p = st.number_input("MSS Price", value=0.0, format="%.2f", disabled=m5_lock)
+
+with c5_3:
+    st.write("**Confirmation Type**")
+    m5_bos_ok = st.checkbox("BOS Confirmed", disabled=m5_bos_p == 0)
+    m5_mss_ok = st.checkbox("MSS Confirmed", disabled=m5_mss_p == 0)
 
 # ---------------- CONFLUENCE METER ---------------- #
-m5_bos_ok = st.checkbox("5M BOS/MSS Confirmed", disabled=not bias_15m_ok)
-confluences = [bias_4h_ok, bias_1h_ok, bias_30m_ok, bias_15m_ok, m5_bos_ok]
-progress = sum(confluences) / 5
-st.progress(progress)
-st.write(f"**Setup Strength: {int(progress*100)}%**")
+st.markdown("---")
+confluences = [bias_4h_ok, bias_1h_ok, bias_30m_ok, bias_15m_ok, (m5_bos_ok or m5_mss_ok)]
+score = sum(confluences)
+progress = score / 5
+
+col_met, col_stat = st.columns([3, 1])
+with col_met:
+    st.progress(progress)
+with col_stat:
+    st.write(f"**Setup Strength: {int(progress*100)}%**")
 
 # ---------------- PHASE 2 & 3 ---------------- #
 st.markdown("---")
@@ -150,29 +192,48 @@ col_poi, col_exec = st.columns([1, 2])
 
 with col_poi:
     st.header("📋 PHASE 2: POI")
-    poi_type = st.selectbox("Zone", ["Select...", "Order Block", "FVG", "Supply/Demand"], disabled=not system_unlocked)
-    zone_price = st.number_input("Entry Zone", value=0.0, format="%.2f", disabled=not system_unlocked)
-    trade_dir = st.radio("Dir", ["Select...", "LONG 🔵", "SHORT 🔴"], horizontal=True, disabled=not system_unlocked)
+    poi_type = st.selectbox("Trading Zone", ["Select...", "Swing High", "Swing Low", "Supply Zone", "Demand Zone", "Order Block", "FVG"], disabled=not system_unlocked)
+    zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f", disabled=not system_unlocked)
+    trade_dir = st.radio("Position Direction", ["Select...", "LONG 🔵", "SHORT 🔴"], horizontal=True, disabled=not system_unlocked)
 
 with col_exec:
     st.header("🚀 PHASE 3: EXECUTE")
     pip_factor = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
-    entry_val = st.number_input("Entry Price", value=zone_price, format="%.2f", disabled=not system_unlocked)
-    sl_val = st.number_input("Stop Loss", value=0.0, format="%.2f", disabled=not system_unlocked)
+    sl_distance_pips = 20
+    calc_sl = 0.0
+    if zone_price > 0 and trade_dir != "Select...":
+        calc_sl = zone_price - (sl_distance_pips * pip_factor) if trade_dir == "LONG 🔵" else zone_price + (sl_distance_pips * pip_factor)
+
+    sl_val = st.number_input(f"Stop Loss ({sl_distance_pips} Pips)", value=calc_sl, format="%.2f", disabled=not system_unlocked)
+    entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f", disabled=not system_unlocked)
     
     if entry_val > 0 and sl_val > 0 and trade_dir != "Select...":
-        dist = abs(entry_val - sl_val) / pip_factor
-        if dist > 0:
-            lots = round((current_risk_usd / dist) / 10, 2)
-            tp1 = round(entry_val + (dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (dist * 2 * pip_factor), 2)
-            st.metric("Recommended Lots", f"{lots}")
-            st.metric("TP1 (1:2 RR)", f"{tp1}")
+        actual_pips_dist = abs(entry_val - sl_val) / pip_factor
+        if actual_pips_dist > 0:
+            lot_size = (current_risk_usd / actual_pips_dist) / 10
+            tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
+            be_price = entry_val 
+            profit_tp1 = current_risk_usd * 2
+
+            m1, m2 = st.columns(2)
+            m1.metric("Lot Size", f"{round(lot_size, 2)}")
+            m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}", delta=f"+${round(profit_tp1, 2)}")
+            
+            st.info(f"🛡️ **PROTOCOL:** At **{round(tp1, 2)}**, move SL to BE (**{round(be_price, 2)}**).")
             
             if st.button("💾 SAVE TRADE DETAILS", use_container_width=True):
                 trade_data = {
-                    "Time": dt_string, "Asset": symbol, "Dir": trade_dir,
-                    "POI": f"{poi_type} @ {zone_price}", "Lots": lots,
-                    "Entry": entry_val, "SL": sl_val, "TP1": tp1,
+                    "Time": dt_string,
+                    "Asset": symbol,
+                    "Dir": trade_dir,
+                    "4H": f"{s4_h}/{s4_l}",
+                    "1H": f"{s1_h}/{s1_l}",
+                    "30M": f"{s30_h}/{s30_l}",
+                    "15M": f"{s15_h}/{s15_l}",
+                    "POI": f"{poi_type} @ {zone_price}",
+                    "Lots": round(lot_size, 2),
+                    "Entry": entry_val,
+                    "TP1/BE": f"{round(tp1, 2)} / {round(be_price, 2)}",
                     "Plan": st.session_state.trade_notes
                 }
                 st.session_state.trade_history.append(trade_data)
@@ -183,53 +244,31 @@ st.markdown("---")
 st.header("📂 Session Trade Log")
 
 if st.session_state.trade_history:
-    to_delete = []
+    display_data = []
+    for t in st.session_state.trade_history:
+        table_row = {k: v for k, v in t.items() if k != "Plan"}
+        display_data.append(table_row)
     
-    # Header for the custom list
-    st.write("---")
+    df_log = pd.DataFrame(display_data)
+    st.table(df_log)
+
+    st.subheader("📜 Execution Plans & Notes")
     for i, trade in enumerate(st.session_state.trade_history):
-        c_tick, c_txt, c_ed = st.columns([0.5, 7, 1])
-        with c_tick:
-            if st.checkbox("", key=f"del_{i}"):
-                to_delete.append(i)
-        with c_txt:
-            st.write(f"**#{i+1} | {trade['Asset']} {trade['Dir']}** ({trade['Time']})")
-            with st.expander("View Plan"):
-                st.info(trade['Plan'])
-        with c_ed:
-            if st.button("📝 Edit", key=f"edit_{i}"):
-                st.session_state.editing_index = i
-                st.session_state.temp_notes = trade['Plan']
+        with st.expander(f"Plan for Trade #{i+1} ({trade['Asset']} @ {trade['Time']})"):
+            st.write(trade['Plan'])
 
-    # --- EDIT OVERLAY ---
-    if st.session_state.editing_index is not None:
-        idx = st.session_state.editing_index
-        st.markdown(f"### ✏️ Editing Trade #{idx+1}")
-        updated_text = st.text_area("Modify Notes:", value=st.session_state.temp_notes)
-        
-        ce1, ce2 = st.columns(2)
-        if ce1.button("Save Changes"):
-            st.session_state.trade_history[idx]['Plan'] = updated_text
-            st.session_state.editing_index = None
+    c_del1, c_del2, c_dl = st.columns([1, 1, 2])
+    with c_del1:
+        if st.button("🗑️ DELETE LAST", use_container_width=True):
+            st.session_state.trade_history.pop()
             st.rerun()
-        if ce2.button("Cancel Edit"):
-            st.session_state.editing_index = None
-            st.rerun()
-
-    st.markdown("---")
-    # Action Buttons
-    cb1, cb2, cb3 = st.columns(3)
-    with cb1:
-        if st.button("🗑️ DELETE SELECTED", use_container_width=True):
-            for index in sorted(to_delete, reverse=True):
-                st.session_state.trade_history.pop(index)
-            st.rerun()
-    with cb2:
+    with c_del2:
         if st.button("🧨 CLEAR ALL", use_container_width=True):
             st.session_state.trade_history = []
             st.rerun()
-    with cb3:
-        df = pd.DataFrame(st.session_state.trade_history)
-        st.download_button("📥 DOWNLOAD CSV", data=df.to_csv(index=False), file_name="Trades.csv", use_container_width=True)
+    with c_dl:
+        full_df = pd.DataFrame(st.session_state.trade_history)
+        csv = full_df.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 DOWNLOAD CSV", data=csv, file_name="Trade_Log.csv", mime="text/csv", use_container_width=True)
 else:
     st.info("No trades saved yet.")
