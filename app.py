@@ -21,7 +21,6 @@ dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 # ---------------- SIDEBAR: RISK & SYSTEM ---------------- #
 with st.sidebar:
     st.header("⚙️ System Config")
-    # Set default to METAL and XAUUSD as requested
     asset_type = st.selectbox("Select Asset Class", ["METAL (Gold/Silver)", "FOREX", "INDICES / CRYPTO"], index=0)
     symbol = st.text_input("Enter Instrument", value="XAUUSD").upper()
     
@@ -44,9 +43,7 @@ with st.sidebar:
 
     st.markdown("---")
     st.header("🌍 News Filter")
-    
     st.link_button("📊 Check Forex Factory", "https://www.forexfactory.com/", use_container_width=True)
-    
     news_ok = st.toggle("No High Impact News Active", value=False) 
     
     if not news_ok:
@@ -79,31 +76,12 @@ with st.sidebar:
 st.title(f"🏹 BlackArrowFX: {symbol} Precision Engine")
 st.caption(f"Asset: {symbol} | Mode: {asset_type} | Server Time: {dt_string}")
 
-# ---------------- NEW PERMANENT TRADING PLAN SECTION ---------------- #
 with st.expander("📜 MY TRADING PLAN", expanded=False):
     st.markdown("""
-    ### 1. Market Structure Analysis
-    * **1H:** Analyze overall market structure.
-    * **15M:** Confirm short-term direction and intraday zones.
-    * **5M:** Precise entry execution.
-    * *Identify: Trend direction, BoS, Liquidity zones, and Reversal areas.*
-
-    ### 2. BlackArrowFX Strategic Setup
-    * Confirm and mark all **Swing Highs and Swing Lows** on every timeframe.
-    * Ensure setup aligns with HTF bias before execution (POI & Key Levels).
-
-    ### 3. BlackArrowClick Execution
-    * Select **Fixed Lot** or **Risk Amount** before placing trade.
-    * Pre-plan entry price and double-check **SL/TP** levels.
-
-    ### 4. Risk Management
-    * **Max Risk:** 3% to 5% or **$100 maximum**.
-    * Maintain discipline; never exceed daily limits.
-
-    ### 5. Footprint Monitoring (15M/30M)
-    * Watch major reversal zones for absorption and trapped traders.
-    * **Delta Check:** Look for 1,000+ Delta (15M) | 1,500 ticks per row.
-    
+    ### 1. Market Structure Analysis (1H -> 15M -> 5M)
+    ### 2. Strategic Setup (Swing H/L, POI, Liquidity)
+    ### 3. Footprint Monitoring (15M/30M Delta & Imbalances)
+    ### 4. Risk Management (Max $100 or 3-5% Risk)
     **Final Rule:** Only execute when Structure + POI + Footprint + Risk are aligned.
     """)
 
@@ -144,24 +122,33 @@ with c15m:
     s15_l = st.number_input("15M Low", value=0.0, format="%.2f", key="s15l", disabled=m15_lock)
     bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15_h > 0 and s15_l > 0))
 
-# ---------------- STRATEGY NOTES ---------------- #
+# ---------------- FOOTPRINT MONITORING ---------------- #
 st.markdown("---")
-st.subheader("📝 POST-SHOCK EXECUTION PLAN")
-with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
-    st.session_state.trade_notes = st.text_area(
-        "Paste Strategic Setup Here:",
-        value=st.session_state.trade_notes,
-        height=200,
-        placeholder="WHAT TO DO: Watch for Liquidity Sweep...\nWHAT NOT TO DO: No Panic Entry..."
-    )
+st.subheader("👣 FOOTPRINT & ORDER FLOW (15M/30M)")
+cf1, cf2, cf3 = st.columns(3)
+
+with cf1:
+    delta_val = st.number_input("Current Delta", value=0, step=100, disabled=not bias_15m_ok)
+    # Threshold logic
+    delta_req = 1000 if asset_type == "METAL (Gold/Silver)" else 1500
+    delta_met = abs(delta_val) >= delta_req
+
+with cf2:
+    imbalances = st.multiselect("Imbalances", ["Buy Imbalance (Blue)", "Sell Imbalance (Yellow)"], disabled=not bias_15m_ok)
+    three_hundred_pct = st.toggle("300% Imbalance Level Confirmed", value=False, disabled=not bias_15m_ok)
+
+with cf3:
+    absorption = st.toggle("Absorption / Trapped Traders", value=False, disabled=not bias_15m_ok)
+    footprint_ok = st.checkbox("Footprint Confirmed", value=(delta_met and three_hundred_pct), disabled=not bias_15m_ok)
 
 # ---------------- 5M MICRO-CONFIRMATION ---------------- #
+st.markdown("---")
 st.subheader("⚡ 5M MICRO-CONFIRMATION")
 c5_1, c5_2, c5_3 = st.columns(3)
 
 with c5_1:
-    m5_trend = st.radio("5M Current Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="m5_t", disabled=not bias_15m_ok)
-    m5_lock = not bias_15m_ok or m5_trend == "Select..."
+    m5_trend = st.radio("5M Current Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="m5_t", disabled=not footprint_ok)
+    m5_lock = not footprint_ok or m5_trend == "Select..."
 
 with c5_2:
     m5_bos_p = st.number_input("BOS Price", value=0.0, format="%.2f", disabled=m5_lock)
@@ -174,9 +161,9 @@ with c5_3:
 
 # ---------------- CONFLUENCE METER ---------------- #
 st.markdown("---")
-confluences = [bias_4h_ok, bias_1h_ok, bias_30m_ok, bias_15m_ok, (m5_bos_ok or m5_mss_ok)]
+confluences = [bias_4h_ok, bias_1h_ok, bias_30m_ok, bias_15m_ok, footprint_ok, (m5_bos_ok or m5_mss_ok)]
 score = sum(confluences)
-progress = score / 5
+progress = score / 6
 
 col_met, col_stat = st.columns([3, 1])
 with col_met:
@@ -184,9 +171,9 @@ with col_met:
 with col_stat:
     st.write(f"**Setup Strength: {int(progress*100)}%**")
 
-# ---------------- PHASE 2 & 3 ---------------- #
+# ---------------- PHASE 2 & 3: EXECUTION ---------------- #
 st.markdown("---")
-system_unlocked = bias_15m_ok and news_ok
+system_unlocked = (score >= 5) and news_ok # Requires at least 5 confluences to unlock
 col_poi, col_exec = st.columns([1, 2])
 
 with col_poi:
@@ -199,6 +186,8 @@ with col_exec:
     st.header("🚀 PHASE 3: EXECUTE")
     pip_factor = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
     sl_distance_pips = 20
+    
+    # Auto-calculate SL based on direction
     calc_sl = 0.0
     if zone_price > 0 and trade_dir != "Select...":
         calc_sl = zone_price - (sl_distance_pips * pip_factor) if trade_dir == "LONG 🔵" else zone_price + (sl_distance_pips * pip_factor)
@@ -209,65 +198,35 @@ with col_exec:
     if entry_val > 0 and sl_val > 0 and trade_dir != "Select...":
         actual_pips_dist = abs(entry_val - sl_val) / pip_factor
         if actual_pips_dist > 0:
+            # Standard Lot Calculation
             lot_size = (current_risk_usd / actual_pips_dist) / 10
             tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
-            be_price = entry_val 
-            profit_tp1 = current_risk_usd * 2
-
-            m1, m2 = st.columns(2)
-            m1.metric("Lot Size", f"{round(lot_size, 2)}")
-            m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}", delta=f"+${round(profit_tp1, 2)}")
+            tp2 = entry_val + (actual_pips_dist * 4 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 4 * pip_factor)
             
-            st.info(f"🛡️ **PROTOCOL:** At **{round(tp1, 2)}**, move SL to BE (**{round(be_price, 2)}**).")
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Lot Size", f"{round(lot_size, 2)}")
+            m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}")
+            m3.metric("TP 2 (1:4)", f"{round(tp2, 2)}")
+            
+            st.success(f"🛡️ **PROTOCOL:** At TP1, move SL to Break Even (**{entry_val}**)")
             
             if st.button("💾 SAVE TRADE DETAILS", use_container_width=True):
                 trade_data = {
-                    "Time": dt_string,
-                    "Asset": symbol,
-                    "Dir": trade_dir,
-                    "4H": f"{s4_h}/{s4_l}",
-                    "1H": f"{s1_h}/{s1_l}",
-                    "30M": f"{s30_h}/{s30_l}",
-                    "15M": f"{s15_h}/{s15_l}",
-                    "POI": f"{poi_type} @ {zone_price}",
-                    "Lots": round(lot_size, 2),
-                    "Entry": entry_val,
-                    "TP1/BE": f"{round(tp1, 2)} / {round(be_price, 2)}",
-                    "Plan": st.session_state.trade_notes
+                    "Time": dt_string, "Asset": symbol, "Dir": trade_dir,
+                    "POI": f"{poi_type} @ {zone_price}", "Lots": round(lot_size, 2),
+                    "Entry": entry_val, "SL": sl_val, "TP1": round(tp1, 2)
                 }
                 st.session_state.trade_history.append(trade_data)
                 st.toast("Trade Logged!")
 
-# ---------------- 📊 SESSION LOG ---------------- #
+# ---------------- SESSION LOG ---------------- #
 st.markdown("---")
 st.header("📂 Session Trade Log")
-
 if st.session_state.trade_history:
-    display_data = []
-    for t in st.session_state.trade_history:
-        table_row = {k: v for k, v in t.items() if k != "Plan"}
-        display_data.append(table_row)
-    
-    df_log = pd.DataFrame(display_data)
+    df_log = pd.DataFrame(st.session_state.trade_history)
     st.table(df_log)
-
-    st.subheader("📜 Execution Plans & Notes")
-    for i, trade in enumerate(st.session_state.trade_history):
-        with st.expander(f"Plan for Trade #{i+1} ({trade['Asset']} @ {trade['Time']})"):
-            st.write(trade['Plan'])
-
-    c_del1, c_del2, c_dl = st.columns([1, 1, 2])
-    with c_del1:
-        if st.button("🗑️ DELETE LAST", use_container_width=True):
-            st.session_state.trade_history.pop()
-            st.rerun()
-    with c_del2:
-        if st.button("🧨 CLEAR ALL", use_container_width=True):
-            st.session_state.trade_history = []
-            st.rerun()
-    with c_dl:
-        full_df = pd.DataFrame(st.session_state.trade_history)
-        csv = full_df.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 DOWNLOAD CSV", data=csv, file_name="Trade_Log.csv", mime="text/csv", use_container_width=True)
+    if st.button("🧨 CLEAR ALL"):
+        st.session_state.trade_history = []
+        st.rerun()
 else:
-    st.info("No trades saved yet.")
+    st.info("Waiting for first trade execution...")
