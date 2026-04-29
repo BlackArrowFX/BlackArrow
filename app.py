@@ -76,36 +76,22 @@ with st.sidebar:
 st.title(f"🏹 BlackArrowFX: {symbol} Precision Engine")
 st.caption(f"Asset: {symbol} | Mode: {asset_type} | Server Time: {dt_string}")
 
-# ---------------- AMENDED TRADING PLAN SECTION ---------------- #
+# ---------------- TRADING PLAN SECTION ---------------- #
 with st.expander("📜 MY TRADING PLAN", expanded=False):
     st.markdown("""
     ### 1. Market Structure Analysis
     * **1H:** Analyze overall market structure.
     * **15M:** Confirm short-term direction and intraday zones.
     * **5M:** Precise entry execution.
-    * *Identify: Trend direction, BoS, Liquidity zones, and Reversal areas.*
 
     ### 2. BlackArrowFX Strategic Setup
     * Confirm and mark all **Swing Highs and Swing Lows** on every timeframe.
     * Ensure setup aligns with HTF bias before execution (POI & Key Levels).
 
-    ### 3. BlackArrowClick Execution
-    * Select **Fixed Lot** or **Risk Amount** before placing trade.
-    * Pre-plan entry price and double-check **SL/TP** levels.
-
-    ### 4. Risk Management
-    * **Max Risk:** 3% to 5% or **$100 maximum**.
-    * Maintain discipline; never exceed daily limits.
-
-    ### 5. Footprint Monitoring
-    * **Monitor:** **SHARK ABSORPTION 🦈 on 4H/1H & 15M/30M (+ or -) Delta Check.**
-    * **Zones:** 15M & 30M Footprint Charts at key reversal zones.
-    * **Buy Imbalances:** 🔵 **Blue Highlights** 
-    * **Sell Imbalances:** 🟡 **Yellow Highlights** 
+    ### 3. Footprint Monitoring
+    * **Monitor:** **SHARK ABSORPTION 🦈 on 4H/1H & 15M/30M.**
     * **Confirmation:** Focus on **300% Imbalance Stack** for strong order flow.
     * **Execution:** Use delta shifts, absorption, and imbalance clusters.
-    
-    **Final Rule:** Only execute when Structure + POI + Footprint + Risk are aligned.
     """)
 
 st.markdown("---")
@@ -152,38 +138,30 @@ with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
     st.session_state.trade_notes = st.text_area(
         "Paste Strategic Setup Here:",
         value=st.session_state.trade_notes,
-        height=200,
-        placeholder="WHAT TO DO: Watch for Liquidity Sweep...\nWHAT NOT TO DO: No Panic Entry..."
+        height=150,
+        placeholder="WHAT TO DO: Watch for Liquidity Sweep..."
     )
 
 # ---------------- 5M MICRO-CONFIRMATION ---------------- #
 st.subheader("⚡ 5M MICRO-CONFIRMATION")
 c5_1, c5_2, c5_3 = st.columns(3)
-
 with c5_1:
     m5_trend = st.radio("5M Current Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="m5_t", disabled=not bias_15m_ok)
     m5_lock = not bias_15m_ok or m5_trend == "Select..."
-
 with c5_2:
     m5_bos_p = st.number_input("BOS Price", value=0.0, format="%.2f", disabled=m5_lock)
     m5_mss_p = st.number_input("MSS Price", value=0.0, format="%.2f", disabled=m5_lock)
-
 with c5_3:
     st.write("**Confirmation Type**")
     m5_bos_ok = st.checkbox("BOS Confirmed", disabled=m5_bos_p == 0)
     m5_mss_ok = st.checkbox("MSS Confirmed", disabled=m5_mss_p == 0)
 
 # ---------------- CONFLUENCE METER ---------------- #
-st.markdown("---")
 confluences = [bias_4h_ok, bias_1h_ok, bias_30m_ok, bias_15m_ok, (m5_bos_ok or m5_mss_ok)]
 score = sum(confluences)
 progress = score / 5
-
-col_met, col_stat = st.columns([3, 1])
-with col_met:
-    st.progress(progress)
-with col_stat:
-    st.write(f"**Setup Strength: {int(progress*100)}%**")
+st.progress(progress)
+st.write(f"**Setup Strength: {int(progress*100)}%**")
 
 # ---------------- PHASE 2 & 3 ---------------- #
 st.markdown("---")
@@ -210,58 +188,61 @@ with col_exec:
     if entry_val > 0 and sl_val > 0 and trade_dir != "Select...":
         actual_pips_dist = abs(entry_val - sl_val) / pip_factor
         if actual_pips_dist > 0:
-            lot_size = (current_risk_usd / actual_pips_dist) / 10
+            lot_size = (current_risk_usd / (actual_pips_dist * 10)) # Fixed Precision Math
             tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
-            be_price = entry_val 
-            profit_tp1 = current_risk_usd * 2
-
+            
             m1, m2 = st.columns(2)
             m1.metric("Lot Size", f"{round(lot_size, 2)}")
-            m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}", delta=f"+${round(profit_tp1, 2)}")
-            
-            st.info(f"🛡️ **PROTOCOL:** At **{round(tp1, 2)}**, move SL to BE (**{round(be_price, 2)}**).")
+            m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}", delta=f"+${round(current_risk_usd * 2, 2)}")
             
             if st.button("💾 SAVE TRADE DETAILS", use_container_width=True):
                 trade_data = {
                     "Time": dt_string,
                     "Asset": symbol,
                     "Dir": trade_dir,
-                    "4H": f"{s4_h}/{s4_l}",
-                    "1H": f"{s1_h}/{s1_l}",
-                    "30M": f"{s30_h}/{s30_l}",
-                    "15M": f"{s15_h}/{s15_l}",
-                    "POI": f"{poi_type} @ {zone_price}",
+                    "Entry": float(entry_val),
+                    "SL": float(sl_val),
                     "Lots": round(lot_size, 2),
-                    "Entry": entry_val,
-                    "TP1/BE": f"{round(tp1, 2)} / {round(be_price, 2)}",
+                    "POI": f"{poi_type} @ {zone_price}",
                     "Plan": st.session_state.trade_notes
                 }
                 st.session_state.trade_history.append(trade_data)
                 st.toast("Trade Logged!")
 
-# ---------------- 📊 SESSION LOG ---------------- #
+# ---------------- 📊 SESSION LOG & EDIT SYSTEM ---------------- #
 st.markdown("---")
 st.header("📂 Session Trade Log")
 
 if st.session_state.trade_history:
-    display_data = []
-    for t in st.session_state.trade_history:
-        table_row = {k: v for k, v in t.items() if k != "Plan"}
-        display_data.append(table_row)
-    
-    df_log = pd.DataFrame(display_data)
+    df_log = pd.DataFrame([{k: v for k, v in t.items() if k != "Plan"} for t in st.session_state.trade_history])
     st.table(df_log)
 
-    st.subheader("📜 Execution Plans & Notes")
+    st.subheader("📜 Manage & Edit History")
     for i, trade in enumerate(st.session_state.trade_history):
-        with st.expander(f"Plan for Trade #{i+1} ({trade['Asset']} @ {trade['Time']})"):
-            st.write(trade['Plan'])
+        with st.expander(f"🛠️ Edit Trade #{i+1} ({trade['Asset']} @ {trade['Time']})"):
+            ec1, ec2 = st.columns(2)
+            with ec1:
+                edit_entry = st.number_input(f"Entry Price", value=float(trade['Entry']), key=f"e_en_{i}", format="%.2f")
+                edit_lots = st.number_input(f"Lots", value=float(trade['Lots']), key=f"e_lo_{i}", step=0.01)
+            with ec2:
+                edit_poi = st.text_input(f"POI Detail", value=trade['POI'], key=f"e_po_{i}")
+                edit_plan = st.text_area(f"Plan/Notes", value=trade['Plan'], key=f"e_pl_{i}")
+            
+            if st.button(f"Update Trade #{i+1}", key=f"btn_u_{i}"):
+                st.session_state.trade_history[i].update({
+                    "Entry": edit_entry, "Lots": edit_lots, "POI": edit_poi, "Plan": edit_plan
+                })
+                st.toast("Changes Saved!")
+                st.rerun()
 
+    # ACTION BUTTONS
+    st.markdown("---")
     c_del1, c_del2, c_dl = st.columns([1, 1, 2])
     with c_del1:
         if st.button("🗑️ DELETE LAST", use_container_width=True):
-            st.session_state.trade_history.pop()
-            st.rerun()
+            if st.session_state.trade_history:
+                st.session_state.trade_history.pop()
+                st.rerun()
     with c_del2:
         if st.button("🧨 CLEAR ALL", use_container_width=True):
             st.session_state.trade_history = []
