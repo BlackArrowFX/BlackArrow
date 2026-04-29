@@ -223,6 +223,34 @@ with c15m:
     st.session_state.s15h, st.session_state.s15l = s15h, s15l
     bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15h > 0 and s15l > 0))
 
+# ---------------- STRATEGY NOTES (PERSISTENT) ---------------- #
+st.markdown("---")
+st.subheader("📝 EXECUTION PLANS & NOTES")
+
+with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
+    note_input = st.text_area("Strategic Setup:", value=st.session_state.trade_notes, height=450, key="note_area")
+    if st.button("💾 SAVE STRATEGIC NOTES", use_container_width=True):
+        st.session_state.trade_notes = note_input
+        sync_user_to_file()
+        st.toast("Saved!")
+
+# ---------------- 5M MICRO-CONFIRMATION ---------------- #
+st.subheader("⚡ 5M MICRO-CONFIRMATION")
+c5_1, c5_2, c5_3 = st.columns(3)
+
+with c5_1:
+    m5_trend = st.radio("5M Current Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="m5_t", disabled=not bias_15m_ok)
+    m5_lock = not bias_15m_ok or m5_trend == "Select..."
+
+with c5_2:
+    m5_bos_p = st.number_input("BOS Price", value=0.0, format="%.2f", disabled=m5_lock)
+    m5_mss_p = st.number_input("MSS Price", value=0.0, format="%.2f", disabled=m5_lock)
+
+with c5_3:
+    st.write("**Confirmation Type**")
+    m5_bos_ok = st.checkbox("BOS Confirmed", disabled=m5_bos_p == 0)
+    m5_mss_ok = st.checkbox("MSS Confirmed", disabled=m5_mss_p == 0)
+
 # ---------------- CONFLUENCE METER ---------------- #
 st.markdown("---")
 confluences = [bias_4h_ok, bias_1h_ok, bias_30m_ok, bias_15m_ok, (m5_bos_ok or m5_mss_ok)]
@@ -300,31 +328,3 @@ if st.session_state.trade_history:
     st.download_button("📥 DOWNLOAD CSV", data=csv, file_name="Trade_Log.csv", mime="text/csv")
 else:
     st.info("No trades saved yet.")
-
-# ---------------- STRATEGY NOTES (PERSISTENT) ---------------- #
-st.markdown("---")
-st.subheader("📝 EXECUTION PLANS & NOTES")
-
-with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
-    note_input = st.text_area("Strategic Setup:", value=st.session_state.trade_notes, height=450, key="note_area")
-    if st.button("💾 SAVE STRATEGIC NOTES", use_container_width=True):
-        st.session_state.trade_notes = note_input
-        sync_user_to_file()
-        st.toast("Saved!")
-
-# ---------------- 5M MICRO-CONFIRMATION ---------------- #
-st.subheader("⚡ 5M MICRO-CONFIRMATION")
-c5_1, c5_2, c5_3 = st.columns(3)
-
-with c5_1:
-    m5_trend = st.radio("5M Current Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="m5_t", disabled=not bias_15m_ok)
-    m5_lock = not bias_15m_ok or m5_trend == "Select..."
-
-with c5_2:
-    m5_bos_p = st.number_input("BOS Price", value=0.0, format="%.2f", disabled=m5_lock)
-    m5_mss_p = st.number_input("MSS Price", value=0.0, format="%.2f", disabled=m5_lock)
-
-with c5_3:
-    st.write("**Confirmation Type**")
-    m5_bos_ok = st.checkbox("BOS Confirmed", disabled=m5_bos_p == 0)
-    m5_mss_ok = st.checkbox("MSS Confirmed", disabled=m5_mss_p == 0)
