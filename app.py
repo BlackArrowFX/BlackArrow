@@ -145,28 +145,25 @@ with c15m:
     s15_l = st.number_input("15M Low", value=0.0, format="%.2f", key="s15l", disabled=m15_lock)
     bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15_h > 0 and s15_l > 0))
 
-# ---------------- STRATEGY NOTES (UPDATED FOR STABILITY) ---------------- #
+# ---------------- STRATEGY NOTES (FIXED SYNTAX) ---------------- #
 st.markdown("---")
 st.subheader("📝 EXECUTION PLANS & NOTES")
 
 with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
-    # Use a temporary key for the text area to prevent ghosting
+    # We use a key that is different from the session_state key to manage the buffer
     note_input = st.text_area(
         "Paste Strategic Setup Here:",
         value=st.session_state.trade_notes,
         height=450,
         placeholder="WHAT TO DO: Watch for Liquidity Sweep...\nWHAT NOT TO DO: No Panic Entry...",
-        key="temp_note_input"
+        key="temp_text_area"
     )
     
-    # Dedicated Manual Save Button
+    # Manual Save Button to prevent text loss
     if st.button("💾 SAVE STRATEGIC NOTES", use_container_width=True):
         st.session_state.trade_notes = note_input
-        st.success("Notes locked in! They won't disappear now.")
+        st.toast("Notes Saved!")
         st.rerun()
-
-    st.info("💡 **Tip:** Click the 'Save Strategic Notes' button before switching timeframes or logging trades to ensure your data is secure.")
-    )
 
 # ---------------- 5M MICRO-CONFIRMATION ---------------- #
 st.subheader("⚡ 5M MICRO-CONFIRMATION")
