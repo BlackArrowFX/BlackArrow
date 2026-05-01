@@ -276,7 +276,7 @@ with col_exec:
     sl_val = st.number_input(f"Stop Loss ({sl_distance_pips} Pips)", value=calc_sl, format="%.2f", disabled=not system_unlocked)
     
     # 2. NEW: Manual Take Profit Input (Replacing Auto TP)
-    manual_tp = st.number_input("Manual Take Profit", value=0.0, format="%.2f", disabled=not system_unlocked)
+    manual_tp = st.number_input("Manual Take Profit", value=500.0, format="%.2f", disabled=not system_unlocked)
     
     entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f", disabled=not system_unlocked)
     
