@@ -105,8 +105,6 @@ with st.sidebar:
     
     risk_method = st.radio("Risk Method", ["Percentage (%)", "Fixed Amount ($)", "Fixed Lots"])
     
-    # ... rest of the code ...
-    
     # UPDATED: Added "Fixed Lots" to the radio options
     risk_method = st.radio("Risk Method", ["Percentage (%)", "Fixed Amount ($)", "Fixed Lots"])
     
