@@ -270,7 +270,7 @@ col_poi, col_exec = st.columns([1, 2])
 
 with col_poi:
     st.header("📋 PHASE 2: POI")
-    poi_type = st.selectbox("Trading Zone", ["Select...", "Swing High", "Swing Low", "Supply Zone", "Demand Zone", "Order Block", "FVG"], disabled=not system_unlocked)
+    poi_type = st.selectbox("Trading Zone", ["Select...", "Swing High", "Swing Low", "Resistance", "Support", "Supply Zone", "Demand Zone", "Order Block", "FVG"], disabled=not system_unlocked)
     zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f", disabled=not system_unlocked)
     trade_dir = st.radio("Position Direction", ["Select...", "LONG 🔵", "SHORT 🔴"], horizontal=True, disabled=not system_unlocked)
 
