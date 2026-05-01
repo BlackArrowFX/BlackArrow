@@ -349,4 +349,4 @@ if st.session_state.trade_history:
         csv = full_df.to_csv(index=False).encode('utf-8')
         st.download_button("📥 DOWNLOAD CSV", data=csv, file_name="Trade_Log.csv", mime="text/csv", use_container_width=True)
 else:
-    st.info("No trades saved yet.") can u please add Resistance and Support in the Trading zone ? 
+    st.info("No trades saved yet.")
