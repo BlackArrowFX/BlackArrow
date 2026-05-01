@@ -113,7 +113,7 @@ with st.sidebar:
     elif risk_method == "Fixed Amount ($)":
         current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
     else:
-        st.info("📊 Fixed Lot Mode Active: SL calculation will be based on Lot input in Phase 3.")
+        st.info("📊 Fixed Lot Mode Active")
 
     st.markdown("---")
     st.header("🌍 News Filter")
@@ -131,7 +131,6 @@ with st.sidebar:
     limit_reached = st.session_state.trades_taken >= 3
 
     if st.button("❌ RECORD LOSS", use_container_width=True, disabled=limit_reached):
-        # Only subtract from balance if we have a calculated risk, otherwise loss recording is manual via Profit Made field
         st.session_state.balance -= current_risk_usd if risk_method != "Fixed Lot Size" else 0.0
         st.session_state.trades_taken += 1
         sync_user_to_file()
@@ -154,21 +153,9 @@ with st.sidebar:
 st.title(f"🏹 BlackArrowFX: {symbol} Precision Engine")
 st.caption(f"Asset: {symbol} | Mode: {asset_type} | Server Time: {dt_string}")
 
-# ... (Previous Expanded Trading Plan code remains exactly the same) ...
 with st.expander("📜 MY TRADING PLAN", expanded=False):
     st.markdown("""
-    ### 1. Market Structure Analysis
-    * **1H:** Analyze overall market structure.
-    * **15M:** Confirm short-term direction and intraday zones.
-    * **5M:** Precise entry execution.
-    ### 2. BlackArrowFX Strategic Setup
-    * Confirm and mark all **Swing Highs and Swing Lows** on every timeframe.
-    ### 3. BlackArrowClick Execution
-    * Select **Fixed Lot** or **Risk Amount** before placing trade.
-    ### 4. Risk Management
-    * **Max Risk:** 3% to 5% or **$100 maximum**.
-    ### 5. Footprint Monitoring
-    * **Monitor:** **SHARK ABSORPTION 🦈 on 4H/1H & 15M/30M.**
+    ### 1. Market Structure Analysis | 2. Strategic Setup | 3. Execution | 4. Risk | 5. Footprint
     """)
 
 st.markdown("---")
@@ -211,16 +198,7 @@ with c15m:
     st.session_state.s15h, st.session_state.s15l = s15h, s15l
     bias_15m_ok = st.checkbox("15M Confirmed", key="15m_c", disabled=m15_lock or not (s15h > 0 and s15l > 0))
 
-# ---------------- STRATEGY NOTES (PERSISTENT) ---------------- #
 st.markdown("---")
-st.subheader("📝 EXECUTION PLANS & NOTES")
-with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
-    note_input = st.text_area("Strategic Setup:", value=st.session_state.trade_notes, height=450, key="note_area")
-    if st.button("💾 SAVE STRATEGIC NOTES", use_container_width=True):
-        st.session_state.trade_notes = note_input
-        sync_user_to_file()
-        st.toast("Saved!")
-
 # ---------------- 5M MICRO-CONFIRMATION ---------------- #
 st.subheader("⚡ 5M MICRO-CONFIRMATION")
 c5_1, c5_2, c5_3 = st.columns(3)
@@ -235,97 +213,74 @@ with c5_3:
     m5_bos_ok = st.checkbox("BOS Confirmed", disabled=m5_bos_p == 0)
     m5_mss_ok = st.checkbox("MSS Confirmed", disabled=m5_mss_p == 0)
 
-# ---------------- CONFLUENCE METER ---------------- #
 st.markdown("---")
-confluences = [bias_4h_ok, bias_1h_ok, bias_30m_ok, bias_15m_ok, (m5_bos_ok or m5_mss_ok)]
-score = sum(confluences)
-progress = score / 5
-col_met, col_stat = st.columns([3, 1])
-with col_met:
-    st.progress(progress)
-with col_stat:
-    st.write(f"**Setup Strength: {int(progress*100)}%**")
-
 # ---------------- PHASE 2 & 3 ---------------- #
-st.markdown("---")
 system_unlocked = bias_15m_ok and news_ok
 col_poi, col_exec = st.columns([1, 2])
 
 with col_poi:
     st.header("📋 PHASE 2: POI")
-    poi_type = st.selectbox("Trading Zone", ["Select...", "Swing High", "Swing Low", "Resistance", "Support", "Supply Zone", "Demand Zone", "Order Block", "FVG"], disabled=not system_unlocked)
+    poi_type = st.selectbox("Trading Zone", ["Select...", "Order Block", "FVG", "Supply", "Demand"], disabled=not system_unlocked)
     zone_price = st.number_input("Entry Zone Price", value=0.0, format="%.2f", disabled=not system_unlocked)
     trade_dir = st.radio("Position Direction", ["Select...", "LONG 🔵", "SHORT 🔴"], horizontal=True, disabled=not system_unlocked)
 
 with col_exec:
     st.header("🚀 PHASE 3: EXECUTE")
     
-    # NEW LOGIC: Enter Fixed Lot Size on top if selected in sidebar
-    fixed_lot_val = 0.01
+    # Lot input if Fixed Lot Size is chosen in sidebar
+    fixed_lot_val = 0.10
     if risk_method == "Fixed Lot Size":
         fixed_lot_val = st.number_input("Enter Fixed Lot Size", min_value=0.01, max_value=100.0, value=0.10, step=0.01, disabled=not system_unlocked)
     
     pip_factor = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
+    
+    # Manual Take Profit Input (NEW: On top of Entry Price)
+    tp_val = st.number_input("Manual Take Profit Price", value=0.0, format="%.2f", disabled=not system_unlocked)
+    
+    # Manual Entry Price
+    entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f", disabled=not system_unlocked)
+
+    # Stop Loss
     sl_distance_pips = 20
     calc_sl = 0.0
-    if zone_price > 0 and trade_dir != "Select...":
-        calc_sl = zone_price - (sl_distance_pips * pip_factor) if trade_dir == "LONG 🔵" else zone_price + (sl_distance_pips * pip_factor)
-
-    sl_val = st.number_input(f"Stop Loss ({sl_distance_pips} Pips)", value=calc_sl, format="%.2f", disabled=not system_unlocked)
-    entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f", disabled=not system_unlocked)
+    if entry_val > 0 and trade_dir != "Select...":
+        calc_sl = entry_val - (sl_distance_pips * pip_factor) if trade_dir == "LONG 🔵" else entry_val + (sl_distance_pips * pip_factor)
+    sl_val = st.number_input(f"Stop Loss (Default {sl_distance_pips} Pips)", value=calc_sl, format="%.2f", disabled=not system_unlocked)
     
-    if entry_val > 0 and sl_val > 0 and trade_dir != "Select...":
-        actual_pips_dist = abs(entry_val - sl_val) / pip_factor
+    if entry_val > 0 and sl_val > 0 and tp_val > 0 and trade_dir != "Select...":
+        actual_sl_pips = abs(entry_val - sl_val) / pip_factor
+        actual_tp_pips = abs(entry_val - tp_val) / pip_factor
         
-        if actual_pips_dist > 0:
+        if actual_sl_pips > 0:
             if risk_method == "Fixed Lot Size":
                 lot_size = fixed_lot_val
-                # Calculate what the USD profit would be at 1:2
-                profit_tp1 = (lot_size * 10) * (actual_pips_dist * 2) 
+                # Profit = (Lots * 10) * Pips
+                profit_usd = (lot_size * 10) * actual_tp_pips
             else:
-                lot_size = (current_risk_usd / actual_pips_dist) / 10
-                profit_tp1 = current_risk_usd * 2
-
-            tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
-            be_price = entry_val 
+                lot_size = (current_risk_usd / actual_sl_pips) / 10
+                # Profit based on RR relative to risk
+                rr_ratio = actual_tp_pips / actual_sl_pips
+                profit_usd = current_risk_usd * rr_ratio
 
             m1, m2 = st.columns(2)
-            m1.metric("Lot Size", f"{round(lot_size, 2)}")
-            m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}", delta=f"+${round(profit_tp1, 2)}")
-            
-            st.info(f"🛡️ **PROTOCOL:** SL to BE at {round(tp1, 2)}.")
+            m1.metric("Calculated Lot Size", f"{round(lot_size, 2)}")
+            m2.metric("Target Profit", f"${round(profit_usd, 2)}", delta=f"{round(actual_tp_pips / actual_sl_pips, 2)} RR")
             
             if st.button("💾 SAVE TRADE DETAILS", use_container_width=True):
                 trade_data = {
                     "Time": dt_string, "Asset": symbol, "Dir": trade_dir,
                     "Lots": round(lot_size, 2), "Entry": entry_val,
-                    "TP1/BE": f"{round(tp1, 2)} / {round(be_price, 2)}",
-                    "Plan": st.session_state.trade_notes
+                    "TP": round(tp_val, 2), "SL": round(sl_val, 2)
                 }
                 st.session_state.trade_history.append(trade_data)
-                sync_user_to_file()
-                st.toast("Trade Logged!")
+                sync_user_to_file(); st.toast("Trade Logged!")
 
-# ... (Session Log code remains exactly the same) ...
+# ---------------- SESSION LOG ---------------- #
 st.markdown("---")
 st.header("📂 Session Trade Log")
 if st.session_state.trade_history:
-    display_data = [{k: v for k, v in t.items() if k != "Plan"} for t in st.session_state.trade_history]
-    df_log = pd.DataFrame(display_data)
-    st.table(df_log)
-    # ... Buttons and Expander code ...
-    st.markdown("### 🛠️ Log Management")
-    c_del1, c_del2, c_dl = st.columns([1, 1, 1])
-    with c_del1:
-        if st.button("🗑️ DELETE LAST", use_container_width=True):
-            if st.session_state.trade_history:
-                st.session_state.trade_history.pop(); sync_user_to_file(); st.rerun()
-    with c_del2:
-        if st.button("🧨 CLEAR ALL", use_container_width=True):
-            st.session_state.trade_history = []; sync_user_to_file(); st.rerun()
-    with c_dl:
-        full_df = pd.DataFrame(st.session_state.trade_history)
-        csv = full_df.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 DOWNLOAD CSV", data=csv, file_name="Trade_Log.csv", mime="text/csv", use_container_width=True)
+    st.table(pd.DataFrame(st.session_state.trade_history))
+    if st.button("🧨 CLEAR ALL"):
+        st.session_state.trade_history = []; sync_user_to_file(); st.rerun()
 else:
     st.info("No trades saved yet.")
