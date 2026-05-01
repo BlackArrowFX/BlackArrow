@@ -95,7 +95,7 @@ with st.sidebar:
     symbol = st.text_input("Enter Instrument", value="XAUUSD").upper()
     
     st.markdown("---")
-    st.header("💰 Risk Engine")
+   st.header("💰 Risk Engine")
     
     st.session_state.balance = st.number_input(
         "Current Balance ($)", 
@@ -104,12 +104,20 @@ with st.sidebar:
         format="%.2f"
     )
     
-    risk_method = st.radio("Risk Method", ["Percentage (%)", "Fixed Amount ($)"])
+    # UPDATED: Added "Fixed Lots" to the radio options
+    risk_method = st.radio("Risk Method", ["Percentage (%)", "Fixed Amount ($)", "Fixed Lots"])
+    
+    manual_lot = 0.0 # Initialize variable
+    
     if risk_method == "Percentage (%)":
         risk_pct = st.slider("Risk per Trade (%)", 0.25, 10.0, 1.0)
         current_risk_usd = st.session_state.balance * (risk_pct / 100)
-    else:
+    elif risk_method == "Fixed Amount ($)":
         current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
+    else:
+        # Logic for Fixed Lots
+        manual_lot = st.number_input("Enter Lot Size", min_value=0.01, value=0.10, step=0.01)
+        current_risk_usd = 0.0 # Risk is variable based on SL distance in this mode
 
     st.markdown("---")
     st.header("🌍 News Filter")
@@ -285,17 +293,31 @@ with col_exec:
     sl_val = st.number_input(f"Stop Loss ({sl_distance_pips} Pips)", value=calc_sl, format="%.2f", disabled=not system_unlocked)
     entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f", disabled=not system_unlocked)
     
+   # ---------------- PHASE 3: EXECUTE (UPDATED LOGIC) ---------------- #
     if entry_val > 0 and sl_val > 0 and trade_dir != "Select...":
         actual_pips_dist = abs(entry_val - sl_val) / pip_factor
+        
         if actual_pips_dist > 0:
-            lot_size = (current_risk_usd / actual_pips_dist) / 10
+            # Check if we are using Fixed Lots or calculating based on USD Risk
+            if risk_method == "Fixed Lots":
+                lot_size = manual_lot
+                # Calculate projected risk for the display
+                calculated_risk_usd = lot_size * actual_pips_dist * 10 
+            else:
+                lot_size = (current_risk_usd / actual_pips_dist) / 10
+                calculated_risk_usd = current_risk_usd
+
             tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
             be_price = entry_val 
-            profit_tp1 = current_risk_usd * 2
+            profit_tp1 = (lot_size * actual_pips_dist * 10) * 2
 
             m1, m2 = st.columns(2)
             m1.metric("Lot Size", f"{round(lot_size, 2)}")
             m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}", delta=f"+${round(profit_tp1, 2)}")
+            
+            # Display projected risk if using fixed lots
+            if risk_method == "Fixed Lots":
+                st.warning(f"⚠️ Risk on this trade: ${round(calculated_risk_usd, 2)}")
             
             st.info(f"🛡️ **PROTOCOL:** SL to BE at {round(tp1, 2)}.")
             
