@@ -91,11 +91,10 @@ with st.sidebar:
         st.rerun()
 
     st.header("⚙️ System Config")
-    asset_type = st.selectbox("Select Asset Class", ["METAL (Gold/Silver)", "FOREX", "INDICES / CRYPTO"], index=0)
-    symbol = st.text_input("Enter Instrument", value="XAUUSD").upper()
-    
+    # ... other code ...
+
     st.markdown("---")
-   st.header("💰 Risk Engine")
+    st.header("💰 Risk Engine")  # Ensure this matches the indentation of the line above
     
     st.session_state.balance = st.number_input(
         "Current Balance ($)", 
@@ -103,6 +102,10 @@ with st.sidebar:
         step=10.0, 
         format="%.2f"
     )
+    
+    risk_method = st.radio("Risk Method", ["Percentage (%)", "Fixed Amount ($)", "Fixed Lots"])
+    
+    # ... rest of the code ...
     
     # UPDATED: Added "Fixed Lots" to the radio options
     risk_method = st.radio("Risk Method", ["Percentage (%)", "Fixed Amount ($)", "Fixed Lots"])
