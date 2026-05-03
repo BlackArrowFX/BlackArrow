@@ -267,11 +267,17 @@ with col_exec:
     
     pip_factor = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
     sl_distance_pips = 20
+    
+    # 1. SL Calculation (Still helpful as a starting point)
     calc_sl = 0.0
     if zone_price > 0 and trade_dir != "Select...":
         calc_sl = zone_price - (sl_distance_pips * pip_factor) if trade_dir == "LONG 🔵" else zone_price + (sl_distance_pips * pip_factor)
 
     sl_val = st.number_input(f"Stop Loss ({sl_distance_pips} Pips)", value=calc_sl, format="%.2f", disabled=not system_unlocked)
+    
+    # 2. NEW: Manual Take Profit Input (Replacing Auto TP)
+    manual_tp = st.number_input("Manual Take Profit", value=500.0, format="%.2f", disabled=not system_unlocked)
+    
     entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f", disabled=not system_unlocked)
     
     if entry_val > 0 and sl_val > 0 and trade_dir != "Select...":
@@ -280,26 +286,29 @@ with col_exec:
         if actual_pips_dist > 0:
             if risk_method == "Fixed Lot Size":
                 lot_size = fixed_lot_val
-                # Calculate what the USD profit would be at 1:2
-                profit_tp1 = (lot_size * 10) * (actual_pips_dist * 2) 
+                # Calculate profit based on manual TP distance
+                tp_dist_pips = abs(manual_tp - entry_val) / pip_factor
+                profit_at_tp = (lot_size * 10) * tp_dist_pips
             else:
                 lot_size = (current_risk_usd / actual_pips_dist) / 10
-                profit_tp1 = current_risk_usd * 2
+                # Calculate RR based on manual TP
+                tp_dist_pips = abs(manual_tp - entry_val) / pip_factor
+                rr_ratio = tp_dist_pips / actual_pips_dist if actual_pips_dist != 0 else 0
+                profit_at_tp = current_risk_usd * rr_ratio
 
-            tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
             be_price = entry_val 
 
             m1, m2 = st.columns(2)
             m1.metric("Lot Size", f"{round(lot_size, 2)}")
-            m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}", delta=f"+${round(profit_tp1, 2)}")
+            m2.metric("Target Profit", f"${round(profit_at_tp, 2)}", delta=f"TP: {round(manual_tp, 2)}")
             
-            st.info(f"🛡️ **PROTOCOL:** SL to BE at {round(tp1, 2)}.")
+            st.info(f"🛡️ **PROTOCOL:** SL to BE at {round(manual_tp, 2)} (or your management rule).")
             
             if st.button("💾 SAVE TRADE DETAILS", use_container_width=True):
                 trade_data = {
                     "Time": dt_string, "Asset": symbol, "Dir": trade_dir,
                     "Lots": round(lot_size, 2), "Entry": entry_val,
-                    "TP1/BE": f"{round(tp1, 2)} / {round(be_price, 2)}",
+                    "TP/BE": f"{round(manual_tp, 2)} / {round(be_price, 2)}",
                     "Plan": st.session_state.trade_notes
                 }
                 st.session_state.trade_history.append(trade_data)
