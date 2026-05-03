@@ -52,7 +52,7 @@ if st.session_state.current_user is None:
             vault = load_vault()
             if u_input in vault:
                 data = vault[u_input]
-                st.session_state.balance = data.get("balance", 2146.11)
+                st.session_state.balance = data.get("balance", 2888.88)
                 st.session_state.trades_taken = data.get("trades_taken", 0)
                 st.session_state.trade_notes = data.get("trade_notes", "")
                 st.session_state.trade_history = data.get("trade_history", [])
@@ -65,7 +65,7 @@ if st.session_state.current_user is None:
                 st.session_state.s15h = data.get("s15h", 0.0)
                 st.session_state.s15l = data.get("s15l", 0.0)
             else:
-                st.session_state.balance = 2146.11
+                st.session_state.balance = 2888.88
                 st.session_state.trades_taken = 0
                 st.session_state.trade_notes = ""
                 st.session_state.trade_history = []
