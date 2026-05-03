@@ -104,16 +104,12 @@ with st.sidebar:
         format="%.2f"
     )
     
-    risk_method = st.radio("Risk Method", ["Percentage (%)", "Fixed Amount ($)", "Fixed Lot Size"])
-    
-    current_risk_usd = 0.0
+    risk_method = st.radio("Risk Method", ["Percentage (%)", "Fixed Amount ($)"])
     if risk_method == "Percentage (%)":
         risk_pct = st.slider("Risk per Trade (%)", 0.25, 10.0, 1.0)
         current_risk_usd = st.session_state.balance * (risk_pct / 100)
-    elif risk_method == "Fixed Amount ($)":
-        current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
     else:
-        st.info("📊 Fixed Lot Mode Active: SL calculation will be based on Lot input in Phase 3.")
+        current_risk_usd = st.number_input("Risk Amount ($)", min_value=1.0, value=50.0)
 
     st.markdown("---")
     st.header("🌍 News Filter")
@@ -131,8 +127,7 @@ with st.sidebar:
     limit_reached = st.session_state.trades_taken >= 3
 
     if st.button("❌ RECORD LOSS", use_container_width=True, disabled=limit_reached):
-        # Only subtract from balance if we have a calculated risk, otherwise loss recording is manual via Profit Made field
-        st.session_state.balance -= current_risk_usd if risk_method != "Fixed Lot Size" else 0.0
+        st.session_state.balance -= current_risk_usd 
         st.session_state.trades_taken += 1
         sync_user_to_file()
         st.rerun()
@@ -188,8 +183,10 @@ with st.expander("📜 MY TRADING PLAN", expanded=False):
 
 st.markdown("---")
 
+
 # ---------------- QUAD TIMEFRAME ANALYSIS ---------------- #
 c4h, c1h, c30m, c15m = st.columns(4)
+
 with c4h:
     st.subheader("⏳ 4H BIAS")
     htf_bias = st.radio("Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="4h_t", disabled=not news_ok)
@@ -229,6 +226,7 @@ with c15m:
 # ---------------- STRATEGY NOTES (PERSISTENT) ---------------- #
 st.markdown("---")
 st.subheader("📝 EXECUTION PLANS & NOTES")
+
 with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
     note_input = st.text_area("Strategic Setup:", value=st.session_state.trade_notes, height=450, key="note_area")
     if st.button("💾 SAVE STRATEGIC NOTES", use_container_width=True):
@@ -239,12 +237,15 @@ with st.expander("📌 VIEW/EDIT TRADE NOTES", expanded=True):
 # ---------------- 5M MICRO-CONFIRMATION ---------------- #
 st.subheader("⚡ 5M MICRO-CONFIRMATION")
 c5_1, c5_2, c5_3 = st.columns(3)
+
 with c5_1:
     m5_trend = st.radio("5M Current Trend", ["Select...", "Bullish ⬆️", "Bearish ⬇️", "Ranging"], key="m5_t", disabled=not bias_15m_ok)
     m5_lock = not bias_15m_ok or m5_trend == "Select..."
+
 with c5_2:
     m5_bos_p = st.number_input("BOS Price", value=0.0, format="%.2f", disabled=m5_lock)
     m5_mss_p = st.number_input("MSS Price", value=0.0, format="%.2f", disabled=m5_lock)
+
 with c5_3:
     st.write("**Confirmation Type**")
     m5_bos_ok = st.checkbox("BOS Confirmed", disabled=m5_bos_p == 0)
@@ -255,6 +256,7 @@ st.markdown("---")
 confluences = [bias_4h_ok, bias_1h_ok, bias_30m_ok, bias_15m_ok, (m5_bos_ok or m5_mss_ok)]
 score = sum(confluences)
 progress = score / 5
+
 col_met, col_stat = st.columns([3, 1])
 with col_met:
     st.progress(progress)
@@ -274,79 +276,74 @@ with col_poi:
 
 with col_exec:
     st.header("🚀 PHASE 3: EXECUTE")
-    
-    # NEW LOGIC: Enter Fixed Lot Size on top if selected in sidebar
-    fixed_lot_val = 0.01
-    if risk_method == "Fixed Lot Size":
-        fixed_lot_val = st.number_input("Enter Fixed Lot Size", min_value=0.01, max_value=100.0, value=0.10, step=0.01, disabled=not system_unlocked)
-    
     pip_factor = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
     sl_distance_pips = 20
-    
-    # 1. SL Calculation (Still helpful as a starting point)
     calc_sl = 0.0
     if zone_price > 0 and trade_dir != "Select...":
         calc_sl = zone_price - (sl_distance_pips * pip_factor) if trade_dir == "LONG 🔵" else zone_price + (sl_distance_pips * pip_factor)
 
     sl_val = st.number_input(f"Stop Loss ({sl_distance_pips} Pips)", value=calc_sl, format="%.2f", disabled=not system_unlocked)
-    
-    # 2. NEW: Manual Take Profit Input (Replacing Auto TP)
-    manual_tp = st.number_input("Manual Take Profit", value=500.0, format="%.2f", disabled=not system_unlocked)
-    
     entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f", disabled=not system_unlocked)
     
     if entry_val > 0 and sl_val > 0 and trade_dir != "Select...":
         actual_pips_dist = abs(entry_val - sl_val) / pip_factor
-        
         if actual_pips_dist > 0:
-            if risk_method == "Fixed Lot Size":
-                lot_size = fixed_lot_val
-                # Calculate profit based on manual TP distance
-                tp_dist_pips = abs(manual_tp - entry_val) / pip_factor
-                profit_at_tp = (lot_size * 10) * tp_dist_pips
-            else:
-                lot_size = (current_risk_usd / actual_pips_dist) / 10
-                # Calculate RR based on manual TP
-                tp_dist_pips = abs(manual_tp - entry_val) / pip_factor
-                rr_ratio = tp_dist_pips / actual_pips_dist if actual_pips_dist != 0 else 0
-                profit_at_tp = current_risk_usd * rr_ratio
-
+            lot_size = (current_risk_usd / actual_pips_dist) / 10
+            tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
             be_price = entry_val 
+            profit_tp1 = current_risk_usd * 2
 
             m1, m2 = st.columns(2)
             m1.metric("Lot Size", f"{round(lot_size, 2)}")
-            m2.metric("Target Profit", f"${round(profit_at_tp, 2)}", delta=f"TP: {round(manual_tp, 2)}")
+            m2.metric("TP 1 (1:2)", f"{round(tp1, 2)}", delta=f"+${round(profit_tp1, 2)}")
             
-            st.info(f"🛡️ **PROTOCOL:** SL to BE at {round(manual_tp, 2)} (or your management rule).")
+            st.info(f"🛡️ **PROTOCOL:** SL to BE at {round(tp1, 2)}.")
             
             if st.button("💾 SAVE TRADE DETAILS", use_container_width=True):
                 trade_data = {
                     "Time": dt_string, "Asset": symbol, "Dir": trade_dir,
                     "Lots": round(lot_size, 2), "Entry": entry_val,
-                    "TP/BE": f"{round(manual_tp, 2)} / {round(be_price, 2)}",
+                    "TP1/BE": f"{round(tp1, 2)} / {round(be_price, 2)}",
                     "Plan": st.session_state.trade_notes
                 }
                 st.session_state.trade_history.append(trade_data)
                 sync_user_to_file()
                 st.toast("Trade Logged!")
 
-# ... (Session Log code remains exactly the same) ...
+# ---------------- 📊 SESSION LOG (RESTRUCTURED) ---------------- #
 st.markdown("---")
 st.header("📂 Session Trade Log")
+
 if st.session_state.trade_history:
+    # 1. Create the Table first
     display_data = [{k: v for k, v in t.items() if k != "Plan"} for t in st.session_state.trade_history]
     df_log = pd.DataFrame(display_data)
     st.table(df_log)
-    # ... Buttons and Expander code ...
+
+    # 2. Show the Notes/Plans in a clean layout
+    st.subheader("📜 Execution Plans & Notes")
+    for i, trade in enumerate(st.session_state.trade_history):
+        # Use a unique key for each expander to prevent state loss
+        with st.expander(f"Plan for Trade #{i+1} ({trade['Asset']} @ {trade['Time']})"):
+            st.write(trade.get('Plan', "No notes recorded for this trade."))
+
+    # 3. FIX THE BUTTONS: Place them in a container to keep them grouped
     st.markdown("### 🛠️ Log Management")
-    c_del1, c_del2, c_dl = st.columns([1, 1, 1])
+    c_del1, c_del2, c_dl = st.columns([1, 1, 1]) # Equal widths often look better
+    
     with c_del1:
         if st.button("🗑️ DELETE LAST", use_container_width=True):
             if st.session_state.trade_history:
-                st.session_state.trade_history.pop(); sync_user_to_file(); st.rerun()
+                st.session_state.trade_history.pop()
+                sync_user_to_file()
+                st.rerun()
+    
     with c_del2:
         if st.button("🧨 CLEAR ALL", use_container_width=True):
-            st.session_state.trade_history = []; sync_user_to_file(); st.rerun()
+            st.session_state.trade_history = []
+            sync_user_to_file()
+            st.rerun()
+            
     with c_dl:
         full_df = pd.DataFrame(st.session_state.trade_history)
         csv = full_df.to_csv(index=False).encode('utf-8')
