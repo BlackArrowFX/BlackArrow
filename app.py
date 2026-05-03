@@ -276,6 +276,10 @@ with col_poi:
 
 with col_exec:
     st.header("🚀 PHASE 3: EXECUTE")
+    
+    # NEW FEATURE: Calculation Mode Toggle
+    calc_mode = st.radio("Execution Mode", ["Risk Based Calculation", "Fixed Lot Size"], horizontal=True, disabled=not system_unlocked)
+    
     pip_factor = 0.1 if asset_type == "METAL (Gold/Silver)" else (0.0001 if asset_type == "FOREX" else 1.0)
     sl_distance_pips = 20
     calc_sl = 0.0
@@ -285,13 +289,26 @@ with col_exec:
     sl_val = st.number_input(f"Stop Loss ({sl_distance_pips} Pips)", value=calc_sl, format="%.2f", disabled=not system_unlocked)
     entry_val = st.number_input("Manual Entry Price", value=0.0, format="%.2f", disabled=not system_unlocked)
     
+    # NEW FEATURE: Fixed Lot input field
+    fixed_lot_val = 0.01
+    if calc_mode == "Fixed Lot Size":
+        fixed_lot_val = st.number_input("Enter Fixed Lot Size", min_value=0.01, max_value=100.0, value=0.10, step=0.01)
+
     if entry_val > 0 and sl_val > 0 and trade_dir != "Select...":
         actual_pips_dist = abs(entry_val - sl_val) / pip_factor
+        
         if actual_pips_dist > 0:
-            lot_size = (current_risk_usd / actual_pips_dist) / 10
+            # Logic branch for Lot Size
+            if calc_mode == "Risk Based Calculation":
+                lot_size = (current_risk_usd / actual_pips_dist) / 10
+                profit_tp1 = current_risk_usd * 2
+            else:
+                lot_size = fixed_lot_val
+                # Profit calculation for Fixed Lot: (Lots * 10) * Pips * 2 (for 1:2 RR)
+                profit_tp1 = (lot_size * 10) * (actual_pips_dist * 2)
+
             tp1 = entry_val + (actual_pips_dist * 2 * pip_factor) if trade_dir == "LONG 🔵" else entry_val - (actual_pips_dist * 2 * pip_factor)
             be_price = entry_val 
-            profit_tp1 = current_risk_usd * 2
 
             m1, m2 = st.columns(2)
             m1.metric("Lot Size", f"{round(lot_size, 2)}")
