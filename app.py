@@ -183,7 +183,7 @@ with st.expander("📜 MY TRADING PLAN", expanded=False):
     * **Confirmation:** Focus on **300% Imbalance Stack** for strong order flow.
     * **Execution:** Use delta shifts, absorption, and imbalance clusters.
     
-    **Final Rule:** Only execute when Structure + POI + Footprint + Risk are aligned.
+    **Final Rule:** Only execute when Structure + POI + Footprint + Risk are aligned. Do not Again the Trend."
     """)
 
 st.markdown("---")
